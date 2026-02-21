@@ -35,20 +35,28 @@ func main() {
 	// Keep the original puzzle so we know which cells are fixed.
 	original := puzzle
 
-	fmt.Println("\nLet's play! Commands:")
-	fmt.Println("  <row> <col> <val>  — place a number (1-indexed, val 1-9)")
-	fmt.Println("  clear <row> <col>  — remove your entry")
-	fmt.Println("  hint               — reveal one cell from the solution")
-	fmt.Println("  solve              — auto-solve the entire puzzle")
-	fmt.Println("  quit               — exit")
-	fmt.Println()
+	const instructions = `Commands:
+  <row> <col> <val>  — place a number (1-indexed, val 1-9)
+  clear <row> <col>  — remove your entry
+  hint               — reveal one cell from the solution
+  solve              — auto-solve the entire puzzle
+  quit               — exit`
+
+	msg := "" // status message shown below the board each turn
 
 	for {
+		clearScreen()
+		fmt.Println(instructions)
 		printBoard(&puzzle, &original)
 
 		if sudoku.IsComplete(&puzzle) {
 			fmt.Println("\n🎉 Congratulations! You solved the puzzle!")
 			break
+		}
+
+		if msg != "" {
+			fmt.Println(msg)
+			msg = ""
 		}
 
 		fmt.Print("\n> ")
@@ -69,24 +77,27 @@ func main() {
 
 		case "solve":
 			puzzle = solution
+			clearScreen()
+			fmt.Println(instructions)
 			printBoard(&puzzle, &original)
 			fmt.Println("\nPuzzle solved!")
 			return
 
 		case "hint":
-			giveHint(&puzzle, &solution, rng)
+			msg = giveHint(&puzzle, &solution, rng)
 
 		case "clear":
 			if len(parts) != 3 {
-				fmt.Println("Usage: clear <row> <col>")
+				msg = "Usage: clear <row> <col>"
 				continue
 			}
 			row, col, ok := parseRowCol(parts[1], parts[2])
 			if !ok {
+				msg = "Row and column must each be between 1 and 9."
 				continue
 			}
 			if original[row][col] != 0 {
-				fmt.Println("That cell is part of the original puzzle and cannot be cleared.")
+				msg = "That cell is part of the original puzzle and cannot be cleared."
 				continue
 			}
 			puzzle.Clear(row, col)
@@ -94,35 +105,40 @@ func main() {
 		default:
 			// Expect: <row> <col> <val>
 			if len(parts) != 3 {
-				fmt.Println("Unknown command. Type <row> <col> <val> to place a number.")
+				msg = "Unknown command. Type <row> <col> <val> to place a number."
 				continue
 			}
 			row, col, ok := parseRowCol(parts[0], parts[1])
 			if !ok {
+				msg = "Row and column must each be between 1 and 9."
 				continue
 			}
 			val, err := strconv.Atoi(parts[2])
 			if err != nil || val < 1 || val > 9 {
-				fmt.Println("Value must be between 1 and 9.")
+				msg = "Value must be between 1 and 9."
 				continue
 			}
 			if original[row][col] != 0 {
-				fmt.Println("That cell is part of the original puzzle and cannot be changed.")
+				msg = "That cell is part of the original puzzle and cannot be changed."
 				continue
 			}
 			if !puzzle.IsValidPlacement(row, col, val) {
-				fmt.Printf("Warning: %d at (%d,%d) conflicts with another cell!\n", val, row+1, col+1)
+				msg = fmt.Sprintf("Warning: %d at (%d,%d) conflicts with another cell!", val, row+1, col+1)
 			}
 			puzzle.Set(row, col, val)
 		}
 	}
 }
 
+// clearScreen clears the terminal using ANSI escape codes.
+func clearScreen() {
+	fmt.Print("\033[H\033[2J")
+}
+
 func parseRowCol(rowStr, colStr string) (row, col int, ok bool) {
 	r, err1 := strconv.Atoi(rowStr)
 	c, err2 := strconv.Atoi(colStr)
 	if err1 != nil || err2 != nil || r < 1 || r > 9 || c < 1 || c > 9 {
-		fmt.Println("Row and column must each be between 1 and 9.")
 		return 0, 0, false
 	}
 	return r - 1, c - 1, true
@@ -158,8 +174,8 @@ func printBoard(b, original *sudoku.Board) {
 	fmt.Println("  +-------+-------+-------+")
 }
 
-// giveHint reveals a random empty cell from the solution.
-func giveHint(puzzle, solution *sudoku.Board, rng *rand.Rand) {
+// giveHint reveals a random empty cell from the solution and returns a status message.
+func giveHint(puzzle, solution *sudoku.Board, rng *rand.Rand) string {
 	var empty [][2]int
 	for r := 0; r < 9; r++ {
 		for c := 0; c < 9; c++ {
@@ -169,11 +185,10 @@ func giveHint(puzzle, solution *sudoku.Board, rng *rand.Rand) {
 		}
 	}
 	if len(empty) == 0 {
-		fmt.Println("No empty cells to hint!")
-		return
+		return "No empty cells to hint!"
 	}
 	pos := empty[rng.Intn(len(empty))]
 	r, c := pos[0], pos[1]
 	puzzle[r][c] = solution[r][c]
-	fmt.Printf("Hint: placed %d at (%d,%d)\n", solution[r][c], r+1, c+1)
+	return fmt.Sprintf("Hint: placed %d at (%d,%d)", solution[r][c], r+1, c+1)
 }
