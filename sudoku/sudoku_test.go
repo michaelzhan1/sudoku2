@@ -14,8 +14,8 @@ func TestBoardSetAndGet(t *testing.T) {
 	if !b.Set(0, 0, 5) {
 		t.Fatal("Set should succeed for valid args")
 	}
-	if b.Get(0, 0) != 5 {
-		t.Errorf("expected 5, got %d", b.Get(0, 0))
+	if b[0][0] != 5 {
+		t.Errorf("expected 5, got %d", b[0][0])
 	}
 }
 
@@ -83,49 +83,11 @@ func TestBoardIsFull(t *testing.T) {
 	}
 	for r := range 9 {
 		for c := range 9 {
-			b.Set(r, c, 1) // just fill with 1s for fullness check
+			b[r][c] = 1 // just fill with 1s for fullness check
 		}
 	}
 	if !b.IsFull() {
 		t.Error("board with all cells set should be full")
-	}
-}
-
-func TestBoardIsCompleteTracking(t *testing.T) {
-	// Verify that IsComplete reflects incremental tracking correctly.
-	rng := rand.New(rand.NewPCG(99, 0))
-	puzzle, solution := sudoku.Generate(35, rng)
-
-	// Puzzle is incomplete — IsComplete must be false.
-	if sudoku.IsComplete(&puzzle) {
-		t.Error("partial puzzle should not be complete")
-	}
-
-	// Fill every empty cell from the solution.
-	for r := range 9 {
-		for c := range 9 {
-			if puzzle.IsEmpty(r, c) {
-				puzzle.Set(r, c, solution.Get(r, c))
-			}
-		}
-	}
-	if !sudoku.IsComplete(&puzzle) {
-		t.Error("fully and correctly filled puzzle should be complete")
-	}
-
-	// Overwrite one cell with a wrong value to introduce a conflict,
-	// then verify IsComplete returns false again.
-	val := puzzle.Get(0, 0)
-	wrong := val%9 + 1 // a different value 1–9
-	puzzle.Set(0, 0, wrong)
-	if sudoku.IsComplete(&puzzle) {
-		t.Error("board with a conflict should not be complete")
-	}
-
-	// Restore correct value — should be complete again.
-	puzzle.Set(0, 0, val)
-	if !sudoku.IsComplete(&puzzle) {
-		t.Error("restored board should be complete again")
 	}
 }
 
@@ -144,7 +106,7 @@ func TestGenerateProducesValidPuzzle(t *testing.T) {
 	clueCount := 0
 	for r := range 9 {
 		for c := range 9 {
-			if puzzle.Get(r, c) != 0 {
+			if puzzle[r][c] != 0 {
 				clueCount++
 			}
 		}
@@ -155,9 +117,9 @@ func TestGenerateProducesValidPuzzle(t *testing.T) {
 	// Puzzle cells must match the solution where set.
 	for r := range 9 {
 		for c := range 9 {
-			if puzzle.Get(r, c) != 0 && puzzle.Get(r, c) != solution.Get(r, c) {
+			if puzzle[r][c] != 0 && puzzle[r][c] != solution[r][c] {
 				t.Errorf("puzzle[%d][%d]=%d but solution[%d][%d]=%d",
-					r, c, puzzle.Get(r, c), r, c, solution.Get(r, c))
+					r, c, puzzle[r][c], r, c, solution[r][c])
 			}
 		}
 	}
@@ -165,15 +127,10 @@ func TestGenerateProducesValidPuzzle(t *testing.T) {
 
 func TestGenerateClampedClues(t *testing.T) {
 	rng := rand.New(rand.NewPCG(0, 0))
-	// Requesting more clues than 81 should produce a puzzle identical to the solution.
+	// Requesting more clues than 81 should produce a fully filled board.
 	puzzle, solution := sudoku.Generate(100, rng)
-	for r := range 9 {
-		for c := range 9 {
-			if puzzle.Get(r, c) != solution.Get(r, c) {
-				t.Errorf("requesting 100 clues: puzzle[%d][%d]=%d but solution[%d][%d]=%d",
-					r, c, puzzle.Get(r, c), r, c, solution.Get(r, c))
-			}
-		}
+	if puzzle != solution {
+		t.Error("requesting 100 clues should produce a puzzle equal to the solution")
 	}
 }
 
@@ -197,10 +154,8 @@ func TestIsCompleteOnEmptyBoard(t *testing.T) {
 func TestIsCompleteDetectsConflict(t *testing.T) {
 	rng := rand.New(rand.NewPCG(13, 0))
 	_, solution := sudoku.Generate(81, rng)
-	// Introduce a conflict: swap two adjacent cells in the same row.
-	v00, v01 := solution.Get(0, 0), solution.Get(0, 1)
-	solution.Set(0, 0, v01)
-	solution.Set(0, 1, v00)
+	// Introduce a conflict: swap two cells in the same row.
+	solution[0][0], solution[0][1] = solution[0][1], solution[0][0]
 	if sudoku.IsComplete(&solution) {
 		t.Error("board with conflicting cells should not be complete")
 	}

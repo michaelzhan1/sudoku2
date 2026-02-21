@@ -96,7 +96,7 @@ func main() {
 				msg = "Row and column must each be between 1 and 9."
 				continue
 			}
-			if !original.IsEmpty(row, col) {
+			if original[row][col] != 0 {
 				msg = "That cell is part of the original puzzle and cannot be cleared."
 				continue
 			}
@@ -118,7 +118,7 @@ func main() {
 				msg = "Value must be between 1 and 9."
 				continue
 			}
-			if !original.IsEmpty(row, col) {
+			if original[row][col] != 0 {
 				msg = "That cell is part of the original puzzle and cannot be changed."
 				continue
 			}
@@ -152,10 +152,14 @@ func printBoard(b, original *sudoku.Board) {
 	for row := range 9 {
 		fmt.Printf("%d | ", row+1)
 		for col := range 9 {
-			val := b.Get(row, col)
-			if val == 0 {
+			val := b[row][col]
+			switch {
+			case val == 0:
 				fmt.Print(". ")
-			} else {
+			case original[row][col] != 0:
+				fmt.Printf("%d ", val)
+			default:
+				// User-entered or hint cell
 				fmt.Printf("%d ", val)
 			}
 			if col == 2 || col == 5 {
@@ -175,7 +179,7 @@ func giveHint(puzzle, solution *sudoku.Board, rng *rand.Rand) string {
 	var empty [][2]int
 	for r := range 9 {
 		for c := range 9 {
-			if puzzle.IsEmpty(r, c) {
+			if puzzle[r][c] == 0 {
 				empty = append(empty, [2]int{r, c})
 			}
 		}
@@ -185,7 +189,6 @@ func giveHint(puzzle, solution *sudoku.Board, rng *rand.Rand) string {
 	}
 	pos := empty[rng.IntN(len(empty))]
 	r, c := pos[0], pos[1]
-	val := solution.Get(r, c)
-	puzzle.Set(r, c, val)
-	return fmt.Sprintf("Hint: placed %d at (%d,%d)", val, r+1, c+1)
+	puzzle[r][c] = solution[r][c]
+	return fmt.Sprintf("Hint: placed %d at (%d,%d)", solution[r][c], r+1, c+1)
 }
