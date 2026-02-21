@@ -6,21 +6,8 @@ func Solve(b *Board) bool {
 	return countSolutions(b, 1) == 1
 }
 
-// IsComplete returns true when the board is full and all placements are valid.
+// IsComplete returns true when the board is full and has no conflicting cells.
+// Runs in O(1) using the board's tracking fields.
 func IsComplete(b *Board) bool {
-	if !b.IsFull() {
-		return false
-	}
-	for row := range 9 {
-		for col := range 9 {
-			val := b[row][col]
-			b[row][col] = 0
-			if !b.IsValidPlacement(row, col, val) {
-				b[row][col] = val
-				return false
-			}
-			b[row][col] = val
-		}
-	}
-	return true
+	return b.IsFull() && b.conflicts == 0
 }

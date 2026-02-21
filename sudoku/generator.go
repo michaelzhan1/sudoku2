@@ -33,12 +33,12 @@ func Generate(clues int, rng *rand.Rand) (puzzle Board, solution Board) {
 			break
 		}
 		row, col := pos/9, pos%9
-		saved := puzzle[row][col]
-		puzzle[row][col] = 0
+		saved := puzzle.Get(row, col)
+		puzzle.Clear(row, col)
 		if countSolutions(&puzzle, 2) == 1 {
 			removed++
 		} else {
-			puzzle[row][col] = saved
+			puzzle.Set(row, col, saved)
 		}
 	}
 	return puzzle, solution
@@ -48,18 +48,18 @@ func Generate(clues int, rng *rand.Rand) (puzzle Board, solution Board) {
 func fillBoard(b *Board, rng *rand.Rand) bool {
 	for row := range 9 {
 		for col := range 9 {
-			if b[row][col] != 0 {
+			if !b.IsEmpty(row, col) {
 				continue
 			}
 			vals := rng.Perm(9)
 			for _, v := range vals {
 				val := v + 1
 				if b.IsValidPlacement(row, col, val) {
-					b[row][col] = val
+					b.Set(row, col, val)
 					if fillBoard(b, rng) {
 						return true
 					}
-					b[row][col] = 0
+					b.Clear(row, col)
 				}
 			}
 			return false
@@ -72,16 +72,16 @@ func fillBoard(b *Board, rng *rand.Rand) bool {
 func countSolutions(b *Board, limit int) int {
 	for row := range 9 {
 		for col := range 9 {
-			if b[row][col] != 0 {
+			if !b.IsEmpty(row, col) {
 				continue
 			}
 			count := 0
 			for v := range 9 {
 				val := v + 1
 				if b.IsValidPlacement(row, col, val) {
-					b[row][col] = val
+					b.Set(row, col, val)
 					count += countSolutions(b, limit-count)
-					b[row][col] = 0
+					b.Clear(row, col)
 					if count >= limit {
 						return count
 					}
