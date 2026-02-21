@@ -1,7 +1,7 @@
 package sudoku_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/michaelzhan1/sudoku2/sudoku"
@@ -81,8 +81,8 @@ func TestBoardIsFull(t *testing.T) {
 	if b.IsFull() {
 		t.Error("empty board should not be full")
 	}
-	for r := 0; r < 9; r++ {
-		for c := 0; c < 9; c++ {
+	for r := range 9 {
+		for c := range 9 {
 			b[r][c] = 1 // just fill with 1s for fullness check
 		}
 	}
@@ -94,7 +94,7 @@ func TestBoardIsFull(t *testing.T) {
 // --- Generator tests ---
 
 func TestGenerateProducesValidPuzzle(t *testing.T) {
-	rng := rand.New(rand.NewSource(42))
+	rng := rand.New(rand.NewPCG(42, 0))
 	puzzle, solution := sudoku.Generate(35, rng)
 
 	// Solution must be complete and valid.
@@ -104,8 +104,8 @@ func TestGenerateProducesValidPuzzle(t *testing.T) {
 
 	// Count clues in puzzle.
 	clueCount := 0
-	for r := 0; r < 9; r++ {
-		for c := 0; c < 9; c++ {
+	for r := range 9 {
+		for c := range 9 {
 			if puzzle[r][c] != 0 {
 				clueCount++
 			}
@@ -115,8 +115,8 @@ func TestGenerateProducesValidPuzzle(t *testing.T) {
 		t.Errorf("puzzle has fewer than 17 clues: %d", clueCount)
 	}
 	// Puzzle cells must match the solution where set.
-	for r := 0; r < 9; r++ {
-		for c := 0; c < 9; c++ {
+	for r := range 9 {
+		for c := range 9 {
 			if puzzle[r][c] != 0 && puzzle[r][c] != solution[r][c] {
 				t.Errorf("puzzle[%d][%d]=%d but solution[%d][%d]=%d",
 					r, c, puzzle[r][c], r, c, solution[r][c])
@@ -126,7 +126,7 @@ func TestGenerateProducesValidPuzzle(t *testing.T) {
 }
 
 func TestGenerateClampedClues(t *testing.T) {
-	rng := rand.New(rand.NewSource(0))
+	rng := rand.New(rand.NewPCG(0, 0))
 	// Requesting more clues than 81 should produce a fully filled board.
 	puzzle, solution := sudoku.Generate(100, rng)
 	if puzzle != solution {
@@ -137,7 +137,7 @@ func TestGenerateClampedClues(t *testing.T) {
 // --- Solver tests ---
 
 func TestIsCompleteOnSolvedPuzzle(t *testing.T) {
-	rng := rand.New(rand.NewSource(7))
+	rng := rand.New(rand.NewPCG(7, 0))
 	_, solution := sudoku.Generate(81, rng)
 	if !sudoku.IsComplete(&solution) {
 		t.Error("full generated solution should pass IsComplete")
@@ -152,7 +152,7 @@ func TestIsCompleteOnEmptyBoard(t *testing.T) {
 }
 
 func TestIsCompleteDetectsConflict(t *testing.T) {
-	rng := rand.New(rand.NewSource(13))
+	rng := rand.New(rand.NewPCG(13, 0))
 	_, solution := sudoku.Generate(81, rng)
 	// Introduce a conflict: swap two cells in the same row.
 	solution[0][0], solution[0][1] = solution[0][1], solution[0][0]

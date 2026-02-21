@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"math/rand"
+	"math/rand/v2"
 	"os"
 	"strconv"
 	"strings"
@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 0))
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("Welcome to Sudoku!")
@@ -149,9 +149,9 @@ func printBoard(b, original *sudoku.Board) {
 	fmt.Println()
 	fmt.Println("    1 2 3   4 5 6   7 8 9")
 	fmt.Println("  +-------+-------+-------+")
-	for row := 0; row < 9; row++ {
+	for row := range 9 {
 		fmt.Printf("%d | ", row+1)
-		for col := 0; col < 9; col++ {
+		for col := range 9 {
 			val := b[row][col]
 			switch {
 			case val == 0:
@@ -177,8 +177,8 @@ func printBoard(b, original *sudoku.Board) {
 // giveHint reveals a random empty cell from the solution and returns a status message.
 func giveHint(puzzle, solution *sudoku.Board, rng *rand.Rand) string {
 	var empty [][2]int
-	for r := 0; r < 9; r++ {
-		for c := 0; c < 9; c++ {
+	for r := range 9 {
+		for c := range 9 {
 			if puzzle[r][c] == 0 {
 				empty = append(empty, [2]int{r, c})
 			}
@@ -187,7 +187,7 @@ func giveHint(puzzle, solution *sudoku.Board, rng *rand.Rand) string {
 	if len(empty) == 0 {
 		return "No empty cells to hint!"
 	}
-	pos := empty[rng.Intn(len(empty))]
+	pos := empty[rng.IntN(len(empty))]
 	r, c := pos[0], pos[1]
 	puzzle[r][c] = solution[r][c]
 	return fmt.Sprintf("Hint: placed %d at (%d,%d)", solution[r][c], r+1, c+1)

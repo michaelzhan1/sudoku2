@@ -1,6 +1,6 @@
 package sudoku
 
-import "math/rand"
+import "math/rand/v2"
 
 // Generate creates a new Sudoku puzzle by:
 //  1. Building a fully solved board.
@@ -46,8 +46,8 @@ func Generate(clues int, rng *rand.Rand) (puzzle Board, solution Board) {
 
 // fillBoard fills a board using backtracking with random value ordering.
 func fillBoard(b *Board, rng *rand.Rand) bool {
-	for row := 0; row < 9; row++ {
-		for col := 0; col < 9; col++ {
+	for row := range 9 {
+		for col := range 9 {
 			if b[row][col] != 0 {
 				continue
 			}
@@ -70,13 +70,14 @@ func fillBoard(b *Board, rng *rand.Rand) bool {
 
 // countSolutions counts the number of solutions up to limit using backtracking.
 func countSolutions(b *Board, limit int) int {
-	for row := 0; row < 9; row++ {
-		for col := 0; col < 9; col++ {
+	for row := range 9 {
+		for col := range 9 {
 			if b[row][col] != 0 {
 				continue
 			}
 			count := 0
-			for val := 1; val <= 9; val++ {
+			for v := range 9 {
+				val := v + 1
 				if b.IsValidPlacement(row, col, val) {
 					b[row][col] = val
 					count += countSolutions(b, limit-count)

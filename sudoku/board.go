@@ -9,9 +9,9 @@ type Board [9][9]int
 // String returns a human-readable representation of the board.
 func (b *Board) String() string {
 	result := "  +-------+-------+-------+\n"
-	for row := 0; row < 9; row++ {
+	for row := range 9 {
 		result += "  | "
-		for col := 0; col < 9; col++ {
+		for col := range 9 {
 			if b[row][col] == 0 {
 				result += ". "
 			} else {
@@ -53,13 +53,13 @@ func (b *Board) Clear(row, col int) {
 // violating sudoku rules (ignores the current value at that cell).
 func (b *Board) IsValidPlacement(row, col, val int) bool {
 	// Check row
-	for c := 0; c < 9; c++ {
+	for c := range 9 {
 		if c != col && b[row][c] == val {
 			return false
 		}
 	}
 	// Check column
-	for r := 0; r < 9; r++ {
+	for r := range 9 {
 		if r != row && b[r][col] == val {
 			return false
 		}
@@ -67,8 +67,9 @@ func (b *Board) IsValidPlacement(row, col, val int) bool {
 	// Check 3x3 box
 	boxRow := (row / 3) * 3
 	boxCol := (col / 3) * 3
-	for r := boxRow; r < boxRow+3; r++ {
-		for c := boxCol; c < boxCol+3; c++ {
+	for dr := range 3 {
+		for dc := range 3 {
+			r, c := boxRow+dr, boxCol+dc
 			if (r != row || c != col) && b[r][c] == val {
 				return false
 			}
@@ -79,8 +80,8 @@ func (b *Board) IsValidPlacement(row, col, val int) bool {
 
 // IsFull returns true when there are no empty cells.
 func (b *Board) IsFull() bool {
-	for row := 0; row < 9; row++ {
-		for col := 0; col < 9; col++ {
+	for row := range 9 {
+		for col := range 9 {
 			if b[row][col] == 0 {
 				return false
 			}

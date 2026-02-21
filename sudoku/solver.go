@@ -11,8 +11,8 @@ func IsComplete(b *Board) bool {
 	if !b.IsFull() {
 		return false
 	}
-	for row := 0; row < 9; row++ {
-		for col := 0; col < 9; col++ {
+	for row := range 9 {
+		for col := range 9 {
 			val := b[row][col]
 			b[row][col] = 0
 			if !b.IsValidPlacement(row, col, val) {
