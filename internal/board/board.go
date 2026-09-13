@@ -9,6 +9,7 @@ import (
 // Board is a 9x9 sudoku board
 type Board [9][9]int
 
+// GenerateBoard generates a sudoku puzzle with its solution.
 func GenerateBoard(clues int, rng *rand.Rand) (puzzle, solution Board, err error) {
 	if clues < 17 || clues > 81 {
 		return Board{}, Board{}, utils.ErrInvalidClues
@@ -16,7 +17,7 @@ func GenerateBoard(clues int, rng *rand.Rand) (puzzle, solution Board, err error
 
 	solution = Board{}
 	solution.fillBoard(rng)
-	puzzle = solution.Copy()
+	puzzle = solution // copy
 
 	toRemove := 81 - clues
 	positions := rng.Perm(81)
@@ -35,16 +36,6 @@ func GenerateBoard(clues int, rng *rand.Rand) (puzzle, solution Board, err error
 		}
 	}
 	return puzzle, solution, nil
-}
-
-func (b *Board) Copy() Board {
-	newBoard := Board{}
-	for row := range 9 {
-		for col := range 9 {
-			newBoard[row][col] = b[row][col]
-		}
-	}
-	return newBoard
 }
 
 // IsValidPlacement checks whether val can be placed at (row, col) without

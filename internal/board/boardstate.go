@@ -29,27 +29,28 @@ func NewBoardState(board, solution Board) *BoardState {
 		}
 	}
 
+	original := board // copy
 	return &BoardState{
 		board:     board,
 		remaining: remaining,
-		original:  board.Copy(),
+		original:  original,
 		solution:  solution,
 	}
 }
 
 // Board returns the current board
-func (b *BoardState) Board() *Board {
-	return &b.board
+func (b *BoardState) Board() Board {
+	return b.board
 }
 
 // Original returns the original board (the puzzle)
-func (b *BoardState) Original() *Board {
-	return &b.original
+func (b *BoardState) Original() Board {
+	return b.original
 }
 
 // Solution returns the solution board
-func (b *BoardState) Solution() *Board {
-	return &b.solution
+func (b *BoardState) Solution() Board {
+	return b.solution
 }
 
 // Remaining returns the number of empty cells remaining
@@ -145,6 +146,8 @@ func (b *BoardState) IsComplete() bool {
 	return true
 }
 
+// GiveHint provides a hint for the cell at (row, col) by filling it with the correct value.
+// It then updates the original board state as if the value was always provided.
 func (b *BoardState) GiveHint(row, col int) (int, bool) {
 	if !utils.CheckBounds(row, col) {
 		return 0, false
