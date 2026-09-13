@@ -43,6 +43,7 @@ func main() {
   clear <row> <col>  — remove your entry
   hint <row> <col>   — reveal one cell from the solution
   solve              — auto-solve the entire puzzle
+  reset              - reset the puzzle
   quit               — exit`
 
 	msg := "" // status message shown below the board each turn
@@ -53,14 +54,14 @@ func main() {
 		fmt.Println()
 		fmt.Println(boardState)
 
-		if boardState.IsComplete() {
-			fmt.Println("Congratulations! You solved the puzzle!")
-			break
-		}
-
 		if msg != "" {
 			fmt.Println(msg)
 			msg = ""
+		}
+
+		if boardState.IsComplete() {
+			fmt.Println("Congratulations! You solved the puzzle!")
+			break
 		}
 
 		fmt.Print("\n> ")
@@ -116,6 +117,10 @@ func main() {
 			if !ok {
 				msg = fmt.Sprintf("Unable to clear row %d, column %d: %s", row+1, col+1, reason)
 			}
+
+		case "reset":
+			boardState.Reset()
+			msg = "Puzzle reset."
 
 		default:
 			// Expect: <row> <col> <val>

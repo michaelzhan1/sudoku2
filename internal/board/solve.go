@@ -1,5 +1,6 @@
 package board
 
+// BruteForceSolve solves the board using DFS
 func (b *BoardState) BruteForceSolve() bool {
 	b.Reset()
 	res := solveDFS(&b.board, 0)
@@ -9,6 +10,7 @@ func (b *BoardState) BruteForceSolve() bool {
 	return res
 }
 
+// solveDFS is a helper function for BruteForceSolve that contains the DFS logic
 func solveDFS(board *Board, i int) bool {
 	if i >= 81 {
 		return true

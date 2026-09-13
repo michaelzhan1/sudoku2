@@ -38,6 +38,7 @@ func NewBoardState(board, solution Board) *BoardState {
 	}
 }
 
+// Reset resets the board to its original state
 func (b *BoardState) Reset() {
 	b.board = b.original
 	b.remaining = 0
