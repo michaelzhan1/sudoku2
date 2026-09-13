@@ -38,6 +38,18 @@ func NewBoardState(board, solution Board) *BoardState {
 	}
 }
 
+func (b *BoardState) Reset() {
+	b.board = b.original
+	b.remaining = 0
+	for row := range 9 {
+		for col := range 9 {
+			if b.board[row][col] == 0 {
+				b.remaining++
+			}
+		}
+	}
+}
+
 // Board returns the current board
 func (b *BoardState) Board() Board {
 	return b.board
@@ -91,33 +103,33 @@ func (b *BoardState) String() string {
 }
 
 // Set places a value at (row, col). Returns true if successful.
-func (b *BoardState) Set(row, col, val int) bool {
+func (b *BoardState) Set(row, col, val int) (bool, string) {
 	if !utils.CheckBounds(row, col) || !utils.CheckValue(val) {
-		return false
+		return false, "Row, column, and value must each be between 1 and 9."
 	}
 	if b.original[row][col] != 0 {
-		return false
+		return false, fmt.Sprintf("Value is already known")
 	}
 	if b.board.IsEmpty(row, col) {
 		b.remaining--
 	}
 	b.board[row][col] = val
-	return true
+	return true, ""
 }
 
 // Clear removes the value at (row, col).
-func (b *BoardState) Clear(row, col int) bool {
+func (b *BoardState) Clear(row, col int) (bool, string) {
 	if !utils.CheckBounds(row, col) {
-		return false
+		return false, "Row and column must each be between 1 and 9."
 	}
 	if b.original[row][col] != 0 {
-		return false
+		return false, "Value is already known"
 	}
 	if !b.board.IsEmpty(row, col) {
 		b.remaining++
 	}
 	b.board[row][col] = 0
-	return true
+	return true, ""
 }
 
 // IsFull returns true when there are no empty cells.

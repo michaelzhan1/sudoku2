@@ -77,11 +77,13 @@ func main() {
 		switch strings.ToLower(parts[0]) {
 		case "quit", "q", "exit":
 			fmt.Println("Goodbye!")
-			return
+			break
 
 		case "solve":
-			fmt.Println("\n TODO: not yet implemented")
-			return
+			ok := boardState.BruteForceSolve()
+			if !ok {
+				msg = "Unable to solve the puzzle."
+			}
 
 		case "hint":
 			if len(parts) != 3 {
@@ -110,9 +112,9 @@ func main() {
 				msg = "Row and column must each be between 1 and 9."
 				continue
 			}
-			ok = boardState.Clear(row, col)
+			ok, reason := boardState.Clear(row, col)
 			if !ok {
-				msg = fmt.Sprintf("Unable to clear row %d, column %d", row+1, col+1)
+				msg = fmt.Sprintf("Unable to clear row %d, column %d: %s", row+1, col+1, reason)
 			}
 
 		default:
@@ -126,9 +128,9 @@ func main() {
 				msg = "Row, column, and value must each be between 1 and 9."
 				continue
 			}
-			ok = boardState.Set(row, col, val)
+			ok, reason := boardState.Set(row, col, val)
 			if !ok {
-				msg = fmt.Sprintf("Unable to place %d at row %d, column %d", val, row+1, col+1)
+				msg = fmt.Sprintf("Unable to place %d at row %d, column %d: %s", val, row+1, col+1, reason)
 			}
 		}
 	}
