@@ -138,21 +138,16 @@ func (b *BoardState) IsFull() bool {
 	return b.remaining == 0
 }
 
-// IsComplete returns true when the board is full and all placements are valid.
+// IsComplete returns true when the board is full and all placements are correct.
 func (b *BoardState) IsComplete() bool {
-	// TODO: can optimize by tracking number of errors in the board state
 	if !b.IsFull() {
 		return false
 	}
 	for row := range 9 {
 		for col := range 9 {
-			val := b.board[row][col]
-			b.board[row][col] = 0
-			if !b.board.IsValidPlacement(row, col, val) {
-				b.board[row][col] = val
+			if b.board[row][col] != b.solution[row][col] {
 				return false
 			}
-			b.board[row][col] = val
 		}
 	}
 
