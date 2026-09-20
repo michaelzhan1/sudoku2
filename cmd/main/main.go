@@ -43,6 +43,7 @@ func main() {
   <row> <col> <val>  — place a number (1-indexed, val 1-9)
   clear <row> <col>  — remove your entry
   hint <row> <col>   — reveal one cell from the solution
+  check <row> <col>  - check one cell
   solve              — auto-solve the entire puzzle
   reset              - reset the puzzle
   quit               — exit`
@@ -99,9 +100,30 @@ func main() {
 			}
 			hint, ok := boardState.GiveHint(row, col)
 			if !ok {
-				msg = "No hints available for that cell."
+				msg = fmt.Sprintf("No hints available for row %d, column %d.", row+1, col+1)
 			} else {
 				msg = fmt.Sprintf("Hint: row %d, column %d has value %d", row+1, col+1, hint)
+			}
+
+		case "check":
+			if len(parts) != 3 {
+				msg = "Usage: check <row> <col>"
+				continue
+			}
+			row, col, ok := cli.ParseRowCol(parts[1], parts[2])
+			if !ok {
+				msg = "Row and column must each be between 1 and 9."
+				continue
+			}
+			correct, ok := boardState.Check(row, col)
+			if !ok {
+				msg = fmt.Sprintf("Unable to check row %d, column %d.", row+1, col+1)
+			} else {
+				if correct {
+					msg = fmt.Sprintf("Row %d, column %d is correct", row+1, col+1)
+				} else {
+					msg = fmt.Sprintf("Row %d, column %d is incorrect", row+1, col+1)
+				}
 			}
 
 		case "clear":

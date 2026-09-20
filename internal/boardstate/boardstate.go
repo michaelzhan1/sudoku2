@@ -170,3 +170,19 @@ func (b *BoardState) GiveHint(row, col int) (int, bool) {
 	b.remaining--
 	return hint, true
 }
+
+// Check returns if a given cell has the correct value, and if the value is unable to be checked
+func (b *BoardState) Check(row, col int) (bool, bool) {
+	if !utils.CheckBounds(row, col) {
+		return false, false
+	}
+	if b.board[row][col] == 0 {
+		return false, false
+	}
+
+	good := b.board[row][col] == b.solution[row][col]
+	if good {
+		b.original[row][col] = b.solution[row][col]
+	}
+	return good, true
+}
