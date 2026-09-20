@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/michaelzhan1/sudoku2/internal/board"
+	"github.com/michaelzhan1/sudoku2/internal/boardstate"
 	"github.com/michaelzhan1/sudoku2/internal/cli"
 )
 
@@ -36,7 +37,7 @@ func main() {
 		fmt.Println("Error generating puzzle:", err)
 		return
 	}
-	boardState := board.NewBoardState(puzzle, solution)
+	boardState := boardstate.NewBoardState(puzzle, solution)
 
 	const instructions = `Commands:
   <row> <col> <val>  — place a number (1-indexed, val 1-9)
@@ -78,7 +79,7 @@ func main() {
 		switch strings.ToLower(parts[0]) {
 		case "quit", "q", "exit":
 			fmt.Println("Goodbye!")
-			break
+			return
 
 		case "solve":
 			ok := boardState.BruteForceSolve()

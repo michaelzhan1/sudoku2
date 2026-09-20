@@ -1,37 +1,38 @@
-package board
+package boardstate
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/michaelzhan1/sudoku2/internal/board"
 	"github.com/michaelzhan1/sudoku2/internal/utils"
 )
 
 // BoardState represents the state of a sudoku board
 type BoardState struct {
 	// the board itself
-	board    Board
-	original Board
-	solution Board
+	board    board.Board
+	original board.Board
+	solution board.Board
 
 	// number of empty cells remaining
 	remaining int
 }
 
 // NewBoardState creates a new BoardState from a given Board
-func NewBoardState(board, solution Board) *BoardState {
+func NewBoardState(original, solution board.Board) *BoardState {
 	remaining := 0
 	for row := range 9 {
 		for col := range 9 {
-			if board[row][col] == 0 {
+			if original[row][col] == 0 {
 				remaining++
 			}
 		}
 	}
 
-	original := board // copy
+	copy := original // copy
 	return &BoardState{
-		board:     board,
+		board:     copy,
 		remaining: remaining,
 		original:  original,
 		solution:  solution,
@@ -52,17 +53,17 @@ func (b *BoardState) Reset() {
 }
 
 // Board returns the current board
-func (b *BoardState) Board() Board {
+func (b *BoardState) Board() board.Board {
 	return b.board
 }
 
 // Original returns the original board (the puzzle)
-func (b *BoardState) Original() Board {
+func (b *BoardState) Original() board.Board {
 	return b.original
 }
 
 // Solution returns the solution board
-func (b *BoardState) Solution() Board {
+func (b *BoardState) Solution() board.Board {
 	return b.solution
 }
 
