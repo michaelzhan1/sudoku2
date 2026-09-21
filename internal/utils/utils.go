@@ -2,7 +2,7 @@ package utils
 
 import "errors"
 
-var ErrInvalidClues = errors.New("invalid number of clues; must be between 17 and 81")
+var ErrInvalidClues = errors.New("invalid number of clues; must be between 30 and 81")
 
 // CheckBounds checks if the given row and column are within the bounds of a 9x9 sudoku board
 func CheckBounds(row, col int) bool {

@@ -19,10 +19,10 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("Welcome to Sudoku!")
-	fmt.Println("Difficulty: how many clues to show (17–81). More clues = easier.")
+	fmt.Println("Difficulty: how many clues to show (30–81). More clues = easier.")
 
 	clues := 35 // default medium
-	fmt.Print("Enter number of clues [17-81, default 35]: ")
+	fmt.Print("Enter number of clues [30-81, default 35]: ")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 	if input != "" {

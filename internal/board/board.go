@@ -11,7 +11,7 @@ type Board [9][9]int
 
 // GenerateBoard generates a sudoku puzzle with its solution.
 func GenerateBoard(clues int, rng *rand.Rand) (puzzle, solution Board, err error) {
-	if clues < 17 || clues > 81 {
+	if clues < 30 || clues > 81 {
 		return Board{}, Board{}, utils.ErrInvalidClues
 	}
 
@@ -40,6 +40,7 @@ func GenerateBoard(clues int, rng *rand.Rand) (puzzle, solution Board, err error
 
 // IsValidPlacement checks whether val can be placed at (row, col) without
 // violating sudoku rules (ignores the current value at that cell).
+// The current value at (row, col) is ignored.
 func (b *Board) IsValidPlacement(row, col, val int) bool {
 	if !utils.CheckBounds(row, col) || !utils.CheckValue(val) {
 		return false
@@ -127,6 +128,6 @@ func (b *Board) countSolutions(limit int) int {
 		}
 	}
 
-	// ful board case
+	// full board case
 	return 1
 }
