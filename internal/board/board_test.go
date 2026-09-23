@@ -1,6 +1,7 @@
 package board_test
 
 import (
+	"errors"
 	"math/rand/v2"
 	"testing"
 
@@ -123,7 +124,7 @@ func TestGenerateBoard(t *testing.T) {
 		for _, testcase := range testcases {
 			t.Run(testcase.name, func(t *testing.T) {
 				_, _, err := board.GenerateBoard(testcase.clues, rng)
-				if err == nil {
+				if !errors.Is(err, board.ErrInvalidClues) {
 					t.Errorf("Expected GenerateBoard to fail with clue input %d", testcase.clues)
 				}
 			})

@@ -1,10 +1,13 @@
 package board
 
 import (
+	"errors"
 	"math/rand/v2"
 
 	"github.com/michaelzhan1/sudoku2/internal/utils"
 )
+
+var ErrInvalidClues = errors.New("invalid number of clues; must be between 30 and 81")
 
 // Board is a 9x9 sudoku board
 type Board [9][9]int
@@ -12,7 +15,7 @@ type Board [9][9]int
 // GenerateBoard generates a sudoku puzzle with its solution.
 func GenerateBoard(clues int, rng *rand.Rand) (puzzle, solution Board, err error) {
 	if clues < 30 || clues > 81 {
-		return Board{}, Board{}, utils.ErrInvalidClues
+		return Board{}, Board{}, ErrInvalidClues
 	}
 
 	solution = Board{}

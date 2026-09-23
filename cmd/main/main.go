@@ -37,7 +37,11 @@ func main() {
 		fmt.Println("Error generating puzzle:", err)
 		return
 	}
-	boardState := boardstate.NewBoardState(puzzle, solution)
+	boardState, err := boardstate.NewBoardState(puzzle, solution)
+	if err != nil {
+		fmt.Println("Error creating board state:", err)
+		return
+	}
 
 	const instructions = `Commands:
   <row> <col> <val>  — place a number (1-indexed, val 1-9)
@@ -98,9 +102,9 @@ func main() {
 				msg = "Row and column must each be between 1 and 9."
 				continue
 			}
-			hint, ok := boardState.GiveHint(row, col)
-			if !ok {
-				msg = fmt.Sprintf("No hints available for row %d, column %d.", row+1, col+1)
+			hint, err := boardState.GiveHint(row, col)
+			if err != nil {
+				msg = fmt.Sprintf("Error giving hint for row %d, column %d: %s", row+1, col+1, err.Error())
 			} else {
 				msg = fmt.Sprintf("Hint: row %d, column %d has value %d", row+1, col+1, hint)
 			}
@@ -115,9 +119,9 @@ func main() {
 				msg = "Row and column must each be between 1 and 9."
 				continue
 			}
-			correct, ok := boardState.Check(row, col)
-			if !ok {
-				msg = fmt.Sprintf("Unable to check row %d, column %d.", row+1, col+1)
+			correct, err := boardState.Check(row, col)
+			if err != nil {
+				msg = fmt.Sprintf("Unable to check row %d, column %d: %s", row+1, col+1, err.Error())
 			} else {
 				if correct {
 					msg = fmt.Sprintf("Row %d, column %d is correct", row+1, col+1)
@@ -136,9 +140,9 @@ func main() {
 				msg = "Row and column must each be between 1 and 9."
 				continue
 			}
-			ok, reason := boardState.Clear(row, col)
-			if !ok {
-				msg = fmt.Sprintf("Unable to clear row %d, column %d: %s", row+1, col+1, reason)
+			err := boardState.Clear(row, col)
+			if err != nil {
+				msg = fmt.Sprintf("Unable to clear row %d, column %d: %s", row+1, col+1, err.Error())
 			}
 
 		case "reset":
@@ -156,9 +160,9 @@ func main() {
 				msg = "Row, column, and value must each be between 1 and 9."
 				continue
 			}
-			ok, reason := boardState.Set(row, col, val)
-			if !ok {
-				msg = fmt.Sprintf("Unable to place %d at row %d, column %d: %s", val, row+1, col+1, reason)
+			err := boardState.Set(row, col, val)
+			if err != nil {
+				msg = fmt.Sprintf("Unable to place %d at row %d, column %d: %s", val, row+1, col+1, err.Error())
 			}
 		}
 	}
