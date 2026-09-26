@@ -136,9 +136,112 @@ func (ss *SudokuSolver) Solve() error {
 				continue
 			}
 		}
+
+		// check incomplete
+		for i := range 9 {
+			if ss.fillSinglePossibilityInRow(i) {
+				changed = true
+			}
+			if ss.fillSinglePossibilityInCol(i) {
+				changed = true
+			}
+			if ss.fillSinglePossibilityInBox(i/3, i%3) {
+				changed = true
+			}
+		}
 	}
 
 	return nil
+}
+
+func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
+	if ss.completed.row[row] {
+		return false
+	}
+
+	appears := make(map[int][]int) // value -> list of possible columns
+	for col := range 9 {
+		if ss.board[row][col] != 0 {
+			continue
+		}
+
+		for _, val := range ss.possible[row][col].ToSlice() {
+			appears[val] = append(appears[val], col)
+		}
+	}
+
+	found := false
+	for val, cols := range appears {
+		if len(cols) == 1 {
+			col := cols[0]
+			ss.board[row][col] = val
+			ss.possible[row][col].Clear()
+			ss.updateLinked(row, col)
+			found = true
+		}
+	}
+	return found
+}
+
+func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
+	if ss.completed.col[col] {
+		return false
+	}
+
+	appears := make(map[int][]int) // value -> list of possible rows
+	for row := range 9 {
+		if ss.board[row][col] != 0 {
+			continue
+		}
+
+		for _, val := range ss.possible[row][col].ToSlice() {
+			appears[val] = append(appears[val], row)
+		}
+	}
+
+	found := false
+	for val, rows := range appears {
+		if len(rows) == 1 {
+			row := rows[0]
+			ss.board[row][col] = val
+			ss.possible[row][col].Clear()
+			ss.updateLinked(row, col)
+			found = true
+		}
+	}
+	return found
+}
+
+func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
+	if ss.completed.box[boxRow][boxCol] {
+		return false
+	}
+
+	appears := make(map[int][][2]int) // value -> list of possible cells
+	for r := boxRow * 3; r < boxRow*3+3; r++ {
+		for c := boxCol * 3; c < boxCol*3+3; c++ {
+			if ss.board[r][c] != 0 {
+				continue
+			}
+
+			for _, val := range ss.possible[r][c].ToSlice() {
+				appears[val] = append(appears[val], [2]int{r, c})
+			}
+		}
+	}
+
+	found := false
+	for val, cells := range appears {
+		if len(cells) == 1 {
+			cell := cells[0]
+			row, col := cell[0], cell[1]
+			ss.board[row][col] = val
+			ss.possible[row][col].Clear()
+			ss.updateLinked(row, col)
+			found = true
+		}
+	}
+	return found
 }
 
 func (ss *SudokuSolver) resolveCertainCell(row, col int) error {
@@ -165,6 +268,11 @@ func (ss *SudokuSolver) updateLinked(row, col int) error {
 		return ErrEmptyCell
 	}
 
+	rowComplete := true
+	colComplete := true
+	boxComplete := true
+
+	// remove possible values from row and column
 	for k := range 9 {
 		if k != row && ss.board[k][col] == 0 {
 			ss.possible[k][col].Remove(val)
@@ -174,8 +282,16 @@ func (ss *SudokuSolver) updateLinked(row, col int) error {
 			ss.possible[row][k].Remove(val)
 			ss.pq.Push([2]int{row, k})
 		}
+
+		if ss.board[row][k] == 0 {
+			rowComplete = false
+		}
+		if ss.board[k][col] == 0 {
+			colComplete = false
+		}
 	}
 
+	// remove possible values from box
 	boxRow := (row / 3) * 3
 	boxCol := (col / 3) * 3
 	for r := boxRow; r < boxRow+3; r++ {
@@ -184,7 +300,20 @@ func (ss *SudokuSolver) updateLinked(row, col int) error {
 				ss.possible[r][c].Remove(val)
 				ss.pq.Push([2]int{r, c})
 			}
+			if ss.board[r][c] == 0 {
+				boxComplete = false
+			}
 		}
+	}
+
+	if rowComplete {
+		ss.completed.row[row] = true
+	}
+	if colComplete {
+		ss.completed.col[col] = true
+	}
+	if boxComplete {
+		ss.completed.box[row/3][col/3] = true
 	}
 
 	return nil
