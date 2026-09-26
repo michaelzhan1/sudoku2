@@ -2,6 +2,7 @@ package solve
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/michaelzhan1/sudoku2/internal/board"
 	"github.com/michaelzhan1/sudoku2/internal/utils/fastset"
@@ -10,20 +11,28 @@ import (
 
 var ErrEmptyCell = errors.New("cell is empty, cannot update possible values")
 var ErrUncertainCell = errors.New("cell is uncertain, cannot fully resolve")
-var ErrUnresolvableCell = errors.New("cel found with zero possible values, sudoku is unsolvable")
-var ErrInfiniteLoop = errors.New("infinite loop detected, sudoku is unsolvable")
+var ErrUnresolvable = errors.New("sudoku is unsolvable")
+var ErrUnexpected = errors.New("unexpected error")
+
+type completionStatus struct {
+	row [9]bool
+	col [9]bool
+	box [3][3]bool
+}
 
 type SudokuSolver struct {
-	board    board.Board
-	possible [9][9]*fastset.FastSet[int]
-	pq       *priorityqueue.PriorityQueue[[2]int]
+	board     board.Board
+	possible  [9][9]*fastset.FastSet[int]
+	pq        *priorityqueue.PriorityQueue[[2]int]
+	completed completionStatus
 }
 
 func NewSudokuSolver(b board.Board) *SudokuSolver {
 	ss := &SudokuSolver{
-		board:    b,
-		possible: [9][9]*fastset.FastSet[int]{},
-		pq:       nil,
+		board:     b,
+		possible:  [9][9]*fastset.FastSet[int]{},
+		pq:        nil,
+		completed: completionStatus{},
 	}
 
 	// assign priority queue later to avoid circular dependency on ss.possible
@@ -32,6 +41,33 @@ func NewSudokuSolver(b board.Board) *SudokuSolver {
 		rowB, colB := b[0], b[1]
 		return ss.possible[rowA][colA].Size() < ss.possible[rowB][colB].Size()
 	})
+
+	// check completion status
+	for i := range 9 {
+		rowComplete := true
+		colComplete := true
+		boxComplete := true
+
+		for j := range 9 {
+			// row
+			if ss.board[i][j] == 0 {
+				rowComplete = false
+			}
+			// col
+			if ss.board[j][i] == 0 {
+				colComplete = false
+			}
+			// box
+			boxRow := (i / 3) * 3
+			boxCol := (i % 3) * 3
+			if ss.board[boxRow+(j/3)][boxCol+(j%3)] == 0 {
+				boxComplete = false
+			}
+		}
+		ss.completed.row[i] = rowComplete
+		ss.completed.col[i] = colComplete
+		ss.completed.box[i/3][i%3] = boxComplete
+	}
 
 	for i := range 9 {
 		for j := range 9 {
@@ -68,26 +104,37 @@ func (ss *SudokuSolver) Solve() error {
 	changed := true
 	for !ss.pq.IsEmpty() {
 		if !changed {
-			return ErrInfiniteLoop
+			// return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnresolvable)
+			return nil
 		}
-		cell, _ := ss.pq.Pop() // should not error
-		row, col := cell[0], cell[1]
+		changed = false
 
-		if ss.board[row][col] != 0 {
-			continue
-		}
-
-		if ss.possible[row][col].Size() == 0 {
-			return ErrUnresolvableCell
-		}
-
-		if ss.possible[row][col].Size() == 1 {
-			err := ss.resolveCertainCell(row, col)
-			if err != nil {
-				return err
+		// resolve all single-possibility cells
+		for top, ok := ss.pq.Peek(); ok && ss.possible[top[0]][top[1]].Size() <= 1; top, ok = ss.pq.Peek() {
+			cell, ok := ss.pq.Pop()
+			if !ok {
+				// should not happen
+				return fmt.Errorf("%w: priority queue is empty", ErrUnexpected)
 			}
-			changed = true
-			ss.updateLinked(row, col)
+			row, col := cell[0], cell[1]
+
+			if ss.board[row][col] != 0 {
+				continue
+			}
+
+			if ss.possible[row][col].Size() == 0 {
+				return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnresolvable, row, col)
+			}
+
+			if ss.possible[row][col].Size() == 1 {
+				err := ss.resolveCertainCell(row, col)
+				if err != nil {
+					return err
+				}
+				changed = true
+				ss.updateLinked(row, col)
+				continue
+			}
 		}
 	}
 

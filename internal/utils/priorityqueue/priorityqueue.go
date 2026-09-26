@@ -29,6 +29,14 @@ func (pq *PriorityQueue[T]) Pop() (T, bool) {
 	return item, true
 }
 
+func (pq *PriorityQueue[T]) Peek() (T, bool) {
+	if pq.heap.Len() == 0 {
+		var zero T
+		return zero, false
+	}
+	return pq.heap.items[0], true
+}
+
 func (pq *PriorityQueue[T]) IsEmpty() bool {
 	return pq.heap.Len() == 0
 }
