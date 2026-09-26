@@ -3,7 +3,7 @@ package fastset_test
 import (
 	"testing"
 
-	"github.com/michaelzhan1/sudoku2/internal/fastset"
+	"github.com/michaelzhan1/sudoku2/internal/utils/fastset"
 )
 
 func TestNewFastSet(t *testing.T) {

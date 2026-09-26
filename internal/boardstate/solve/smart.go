@@ -4,33 +4,44 @@ import (
 	"errors"
 
 	"github.com/michaelzhan1/sudoku2/internal/board"
-	"github.com/michaelzhan1/sudoku2/internal/fastset"
+	"github.com/michaelzhan1/sudoku2/internal/utils/fastset"
+	"github.com/michaelzhan1/sudoku2/internal/utils/priorityqueue"
 )
 
 var ErrEmptyCell = errors.New("cell is empty, cannot update possible values")
+var ErrUncertainCell = errors.New("cell is uncertain, cannot fully resolve")
+var ErrUnresolvableCell = errors.New("cel found with zero possible values, sudoku is unsolvable")
+var ErrInfiniteLoop = errors.New("infinite loop detected, sudoku is unsolvable")
 
 type SudokuSolver struct {
-	board     board.Board
-	possible  [9][9]*fastset.FastSet[int]
-	remaining int
+	board    board.Board
+	possible [9][9]*fastset.FastSet[int]
+	pq       *priorityqueue.PriorityQueue[[2]int]
 }
 
 func NewSudokuSolver(b board.Board) *SudokuSolver {
 	ss := &SudokuSolver{
-		board:     b,
-		possible:  [9][9]*fastset.FastSet[int]{},
-		remaining: 0,
+		board:    b,
+		possible: [9][9]*fastset.FastSet[int]{},
+		pq:       nil,
 	}
+
+	// assign priority queue later to avoid circular dependency on ss.possible
+	ss.pq = priorityqueue.NewPriorityQueue[[2]int](func(a, b [2]int) bool {
+		rowA, colA := a[0], a[1]
+		rowB, colB := b[0], b[1]
+		return ss.possible[rowA][colA].Size() < ss.possible[rowB][colB].Size()
+	})
 
 	for i := range 9 {
 		for j := range 9 {
 			ss.possible[i][j] = fastset.NewFastSet[int]()
 
 			if ss.board[i][j] == 0 {
-				ss.remaining++
 				for k := 1; k <= 9; k++ {
 					ss.possible[i][j].Add(k)
 				}
+				ss.pq.Push([2]int{i, j})
 			}
 		}
 	}
@@ -42,43 +53,79 @@ func NewSudokuSolver(b board.Board) *SudokuSolver {
 				continue
 			}
 
-			ss.updatePossible(i, j, ss.board[i][j])
+			ss.updateLinked(i, j)
 		}
 	}
 
 	return ss
 }
 
-func (ss *SudokuSolver) Solve() bool {
-
+func (ss *SudokuSolver) Board() board.Board {
+	return ss.board
 }
 
-func (ss *SudokuSolver) resolveCertainCell(row, col int) bool {
+func (ss *SudokuSolver) Solve() error {
+	changed := true
+	for !ss.pq.IsEmpty() {
+		if !changed {
+			return ErrInfiniteLoop
+		}
+		cell, _ := ss.pq.Pop() // should not error
+		row, col := cell[0], cell[1]
+
+		if ss.board[row][col] != 0 {
+			continue
+		}
+
+		if ss.possible[row][col].Size() == 0 {
+			return ErrUnresolvableCell
+		}
+
+		if ss.possible[row][col].Size() == 1 {
+			err := ss.resolveCertainCell(row, col)
+			if err != nil {
+				return err
+			}
+			changed = true
+			ss.updateLinked(row, col)
+		}
+	}
+
+	return nil
+}
+
+func (ss *SudokuSolver) resolveCertainCell(row, col int) error {
 	if ss.possible[row][col].Size() != 1 {
-		return false
+		return ErrUncertainCell
 	}
 
 	ss.board[row][col], _ = ss.possible[row][col].Peek()
-	ss.remaining--
+	err := ss.updateLinked(row, col)
+	if err != nil {
+		ss.board[row][col] = 0
+		return err
+	}
+
 	ss.possible[row][col].Clear()
-	ss.updatePossible(row, col, ss.board[row][col])
-	return true
+	return nil
 }
 
-// updatePossible updates the possible values for all cells after placing val in (row, col).
+// updateLinked updates the possible values for all cells based on (row, col).
 // It does not update the cell (row, col) itself.
-func (ss *SudokuSolver) updatePossible(row, col int) error {
+func (ss *SudokuSolver) updateLinked(row, col int) error {
 	val := ss.board[row][col]
 	if val == 0 {
 		return ErrEmptyCell
 	}
 
 	for k := range 9 {
-		if k != row {
+		if k != row && ss.board[k][col] == 0 {
 			ss.possible[k][col].Remove(val)
+			ss.pq.Push([2]int{k, col})
 		}
-		if k != col {
+		if k != col && ss.board[row][k] == 0 {
 			ss.possible[row][k].Remove(val)
+			ss.pq.Push([2]int{row, k})
 		}
 	}
 
@@ -86,8 +133,9 @@ func (ss *SudokuSolver) updatePossible(row, col int) error {
 	boxCol := (col / 3) * 3
 	for r := boxRow; r < boxRow+3; r++ {
 		for c := boxCol; c < boxCol+3; c++ {
-			if r != row || c != col {
+			if (r != row || c != col) && ss.board[r][c] == 0 {
 				ss.possible[r][c].Remove(val)
+				ss.pq.Push([2]int{r, c})
 			}
 		}
 	}

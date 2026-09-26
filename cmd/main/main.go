@@ -48,7 +48,7 @@ func main() {
   clear <row> <col>  — remove your entry
   hint <row> <col>   — reveal one cell from the solution
   check <row> <col>  - check one cell
-  solve              — auto-solve the entire puzzle
+  solve <mode>       — auto-solve the entire puzzle
   reset              - reset the puzzle
   quit               — exit`
 
@@ -87,9 +87,26 @@ func main() {
 			return
 
 		case "solve":
-			ok := boardState.BruteForceSolve()
-			if !ok {
-				msg = "Unable to solve the puzzle."
+			if len(parts) != 2 {
+				msg = "Usage: solve <mode>, possible modes: brute, smart"
+				continue
+			}
+			mode := strings.ToLower(parts[1])
+			switch mode {
+			case "brute":
+				ok := boardState.BruteForceSolve()
+				if !ok {
+					msg = "Unable to solve the puzzle."
+				}
+
+			case "smart":
+				err := boardState.SmartSolve()
+				if err != nil {
+					msg = fmt.Sprintf("Unable to solve the puzzle: %s", err.Error())
+				}
+
+			default:
+				msg = "Unknown solve mode. Possible modes: brute, smart"
 			}
 
 		case "hint":
