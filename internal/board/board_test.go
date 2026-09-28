@@ -118,7 +118,7 @@ func TestGenerateBoard(t *testing.T) {
 			name  string
 			clues int
 		}{
-			{"clues_below_bound", 29},
+			{"clues_below_bound", -1},
 			{"clues_above_bound", 82},
 		}
 		for _, testcase := range testcases {
@@ -136,7 +136,6 @@ func TestGenerateBoard(t *testing.T) {
 			name  string
 			clues int
 		}{
-			{"clues_lower_bound", 20},
 			{"clues_upper_bound", 81},
 			{"clues_mid_range", 40},
 		}

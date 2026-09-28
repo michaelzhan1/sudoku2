@@ -11,7 +11,7 @@ import (
 
 var ErrEmptyCell = errors.New("cell is empty, cannot update possible values")
 var ErrUncertainCell = errors.New("cell is uncertain, cannot fully resolve")
-var ErrUnresolvable = errors.New("sudoku is unsolvable")
+var ErrUnsolvable = errors.New("sudoku is unsolvable")
 var ErrUnexpected = errors.New("unexpected error")
 
 type completionStatus struct {
@@ -96,14 +96,11 @@ func NewSudokuSolver(b *board.Board) *SudokuSolver {
 	return ss
 }
 
-func (ss *SudokuSolver) Board() board.Board {
-	return *ss.board
-}
-
 func (ss *SudokuSolver) Solve() error {
 	changed := true
 	for !ss.pq.IsEmpty() {
 		if !changed {
+			// TODO: restore this
 			// return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnresolvable)
 			return nil
 		}
@@ -123,7 +120,7 @@ func (ss *SudokuSolver) Solve() error {
 			}
 
 			if ss.possible[row][col].Size() == 0 {
-				return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnresolvable, row, col)
+				return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnsolvable, row, col)
 			}
 
 			if ss.possible[row][col].Size() == 1 {
@@ -165,12 +162,34 @@ func (ss *SudokuSolver) Solve() error {
 		if changed {
 			continue
 		}
+
+		// use hidden groups
+		for i := range 9 {
+			if ss.resolveClosedGroupsInRow(i) {
+				changed = true
+				break
+			}
+			if ss.resolveClosedGroupsInCol(i) {
+				changed = true
+				break
+			}
+			if ss.resolveClosedGroupsInBox(i/3, i%3) {
+				changed = true
+				break
+			}
+		}
+		if changed {
+			continue
+		}
 	}
 
 	return nil
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
+	if row < 0 || row > 8 {
+		return false
+	}
 	if ss.completed.row[row] {
 		return false
 	}
@@ -200,6 +219,9 @@ func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
+	if col < 0 || col > 8 {
+		return false
+	}
 	if ss.completed.col[col] {
 		return false
 	}
@@ -229,6 +251,9 @@ func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
+	if boxRow < 0 || boxRow > 2 || boxCol < 0 || boxCol > 2 {
+		return false
+	}
 	if ss.completed.box[boxRow][boxCol] {
 		return false
 	}
@@ -317,7 +342,102 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 	return updated
 }
 
-// func (ss *SudokuSolver)
+func (ss *SudokuSolver) resolveClosedGroupsInRow(row int) bool {
+	cells := make([][2]int, 0, 9)
+	for col := range 9 {
+		cells = append(cells, [2]int{row, col})
+	}
+	return ss.resolveClosedGroups(cells)
+}
+
+func (ss *SudokuSolver) resolveClosedGroupsInCol(col int) bool {
+	cells := make([][2]int, 0, 9)
+	for row := range 9 {
+		cells = append(cells, [2]int{row, col})
+	}
+	return ss.resolveClosedGroups(cells)
+}
+
+func (ss *SudokuSolver) resolveClosedGroupsInBox(boxRow, boxCol int) bool {
+	cells := make([][2]int, 0, 9)
+	for row := boxRow * 3; row < boxRow*3+3; row++ {
+		for col := boxCol * 3; col < boxCol*3+3; col++ {
+			cells = append(cells, [2]int{row, col})
+		}
+	}
+	return ss.resolveClosedGroups(cells)
+}
+
+func (ss *SudokuSolver) resolveClosedGroups(cells [][2]int) bool {
+	valToPos := make(map[int][]int)
+	for pos, cell := range cells {
+		row, col := cell[0], cell[1]
+		if ss.board[row][col] != 0 {
+			continue
+		}
+		for _, val := range ss.possible[row][col].ToSlice() {
+			valToPos[val] = append(valToPos[val], pos)
+		}
+	}
+
+	values := make([]int, 0, len(valToPos))
+	for val := range valToPos {
+		values = append(values, val)
+	}
+
+	for groupSize := 2; groupSize < len(values); groupSize++ {
+		chosen := make([]int, 0, groupSize)
+
+		// findGroup looks at all subsets and tests if they form a closed group
+		var findGroup func(int) bool
+		findGroup = func(next int) bool {
+			if len(chosen) == groupSize {
+				positions := fastset.NewFastSet[int]()
+				members := fastset.NewFastSet[int]()
+				for _, val := range chosen {
+					members.Add(val)
+					for _, col := range valToPos[val] {
+						positions.Add(col)
+					}
+				}
+
+				// not valid if more positions than groupSize
+				if positions.Size() != groupSize {
+					return false
+				}
+
+				changed := false
+				for _, pos := range positions.ToSlice() {
+					row, col := cells[pos][0], cells[pos][1]
+					for _, val := range ss.possible[row][col].ToSlice() {
+						if !members.Contains(val) {
+							ss.possible[row][col].Remove(val)
+							ss.pq.Push([2]int{row, col})
+							changed = true
+						}
+					}
+				}
+				return changed
+			}
+
+			// strange indexing to avoid duplicates per loop
+			for index := next; index <= len(values)-(groupSize-len(chosen)); index++ {
+				chosen = append(chosen, values[index])
+				if findGroup(index + 1) {
+					return true
+				}
+				chosen = chosen[:len(chosen)-1]
+			}
+			return false
+		}
+
+		if findGroup(0) {
+			return true
+		}
+	}
+
+	return false
+}
 
 func (ss *SudokuSolver) resolveCertainCell(row, col int) error {
 	if ss.possible[row][col].Size() != 1 {

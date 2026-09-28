@@ -12,6 +12,14 @@ func NewFastSet[T comparable]() *FastSet[T] {
 	}
 }
 
+func (fs *FastSet[T]) Copy() *FastSet[T] {
+	newSet := NewFastSet[T]()
+	for _, value := range fs.arr {
+		newSet.Add(value)
+	}
+	return newSet
+}
+
 func (fs *FastSet[T]) Add(value T) {
 	if _, exists := fs.idxMap[value]; !exists {
 		fs.arr = append(fs.arr, value)

@@ -25,21 +25,21 @@ func TestSolveDFS(t *testing.T) {
 		sets []struct {
 			row, col, val int
 		}
-		exp bool
+		expErr error
 	}{
 		{
-			name: "full_board",
-			exp:  true,
+			name:   "full_board",
+			expErr: nil,
 		},
 		{
-			name: "one_empty_cell",
-			sets: []struct{ row, col, val int }{{0, 0, 0}},
-			exp:  true,
+			name:   "one_empty_cell",
+			sets:   []struct{ row, col, val int }{{0, 0, 0}},
+			expErr: nil,
 		},
 		{
-			name: "two_empty_cells",
-			sets: []struct{ row, col, val int }{{0, 0, 0}, {1, 1, 0}},
-			exp:  true,
+			name:   "two_empty_cells",
+			sets:   []struct{ row, col, val int }{{0, 0, 0}, {1, 1, 0}},
+			expErr: nil,
 		},
 		{
 			name: "impossible_solve",
@@ -49,7 +49,7 @@ func TestSolveDFS(t *testing.T) {
 				{0, 0, 0},
 				{0, 1, 1},
 			},
-			exp: false,
+			expErr: solve.ErrUnsolvable,
 		},
 	}
 
@@ -59,9 +59,9 @@ func TestSolveDFS(t *testing.T) {
 			for _, set := range testcase.sets {
 				testboard[set.row][set.col] = set.val
 			}
-			res := solve.SolveDFS(&testboard, 0)
-			if res != testcase.exp {
-				t.Errorf("expected SolveDFS to return %v, got %v", testcase.exp, res)
+			err := solve.SolveDFS(&testboard)
+			if err != testcase.expErr {
+				t.Errorf("expected SolveDFS to raise error %v, got %v", testcase.expErr, err)
 			}
 		})
 	}
