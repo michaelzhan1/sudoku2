@@ -1,26 +1,39 @@
 package boardstate
 
-import "github.com/michaelzhan1/sudoku2/internal/boardstate/solve"
+import (
+	"errors"
+
+	"github.com/michaelzhan1/sudoku2/internal/boardstate/solve"
+)
+
+var ErrSolveFailed = errors.New("solve failed")
 
 // BruteForceSolve solves the board using DFS
-func (b *BoardState) BruteForceSolve() bool {
+func (b *BoardState) BruteForceSolve() error {
 	b.Reset()
-	res := solve.SolveDFS(&b.board, 0)
-	if res {
-		b.remaining = 0
+	b.remaining = 0
+	err := solve.SolveDFS(&b.board, 0)
+	if err != nil {
+		return err
 	}
-	return res
+
+	if !b.IsComplete() {
+		return ErrSolveFailed
+	}
+	return nil
 }
 
 func (b *BoardState) SmartSolve() error {
 	b.Reset()
-	solver := solve.NewSudokuSolver(b.board)
+	b.remaining = 0
+	solver := solve.NewSudokuSolver(&b.board)
 	err := solver.Solve()
 	if err != nil {
 		return err
 	}
 
-	b.board = solver.Board()
-	b.remaining = 0
+	if !b.IsComplete() {
+		return ErrSolveFailed
+	}
 	return nil
 }

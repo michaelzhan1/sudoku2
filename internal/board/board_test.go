@@ -136,7 +136,7 @@ func TestGenerateBoard(t *testing.T) {
 			name  string
 			clues int
 		}{
-			{"clues_lower_bound", 30},
+			{"clues_lower_bound", 20},
 			{"clues_upper_bound", 81},
 			{"clues_mid_range", 40},
 		}

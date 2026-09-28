@@ -21,13 +21,13 @@ type completionStatus struct {
 }
 
 type SudokuSolver struct {
-	board     board.Board
+	board     *board.Board
 	possible  [9][9]*fastset.FastSet[int]
 	pq        *priorityqueue.PriorityQueue[[2]int]
 	completed completionStatus
 }
 
-func NewSudokuSolver(b board.Board) *SudokuSolver {
+func NewSudokuSolver(b *board.Board) *SudokuSolver {
 	ss := &SudokuSolver{
 		board:     b,
 		possible:  [9][9]*fastset.FastSet[int]{},
@@ -97,7 +97,7 @@ func NewSudokuSolver(b board.Board) *SudokuSolver {
 }
 
 func (ss *SudokuSolver) Board() board.Board {
-	return ss.board
+	return *ss.board
 }
 
 func (ss *SudokuSolver) Solve() error {
@@ -136,6 +136,9 @@ func (ss *SudokuSolver) Solve() error {
 				continue
 			}
 		}
+		if changed {
+			continue
+		}
 
 		// check incomplete
 		for i := range 9 {
@@ -148,6 +151,19 @@ func (ss *SudokuSolver) Solve() error {
 			if ss.fillSinglePossibilityInBox(i/3, i%3) {
 				changed = true
 			}
+		}
+		if changed {
+			continue
+		}
+
+		// use spears
+		for i := range 9 {
+			if ss.resolveSpearsInBox(i/3, i%3) {
+				changed = true
+			}
+		}
+		if changed {
+			continue
 		}
 	}
 
@@ -243,6 +259,65 @@ func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
 	}
 	return found
 }
+
+func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
+	if ss.completed.box[boxRow][boxCol] {
+		return false
+	}
+
+	valueToRows := make(map[int][]int) // value -> list of possible rows in the box
+	valueToCols := make(map[int][]int) // value -> list of possible columns in the box
+
+	for r := boxRow * 3; r < boxRow*3+3; r++ {
+		for c := boxCol * 3; c < boxCol*3+3; c++ {
+			if ss.board[r][c] != 0 {
+				continue
+			}
+
+			for _, val := range ss.possible[r][c].ToSlice() {
+				valueToRows[val] = append(valueToRows[val], r)
+				valueToCols[val] = append(valueToCols[val], c)
+			}
+		}
+	}
+
+	updated := false
+	for val, rows := range valueToRows {
+		if len(rows) == 1 {
+			row := rows[0]
+			for c := 0; c < 9; c++ {
+				if c/3 == boxCol {
+					continue
+				}
+				if ss.board[row][c] == 0 && ss.possible[row][c].Contains(val) {
+					ss.possible[row][c].Remove(val)
+					ss.pq.Push([2]int{row, c})
+					updated = true
+				}
+			}
+		}
+	}
+
+	for val, cols := range valueToCols {
+		if len(cols) == 1 {
+			col := cols[0]
+			for r := 0; r < 9; r++ {
+				if r/3 == boxRow {
+					continue
+				}
+				if ss.board[r][col] == 0 && ss.possible[r][col].Contains(val) {
+					ss.possible[r][col].Remove(val)
+					ss.pq.Push([2]int{r, col})
+					updated = true
+				}
+			}
+		}
+	}
+
+	return updated
+}
+
+// func (ss *SudokuSolver)
 
 func (ss *SudokuSolver) resolveCertainCell(row, col int) error {
 	if ss.possible[row][col].Size() != 1 {

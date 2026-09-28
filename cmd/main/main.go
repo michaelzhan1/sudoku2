@@ -19,10 +19,10 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println("Welcome to Sudoku!")
-	fmt.Println("Difficulty: how many clues to show (30–81). More clues = easier.")
+	fmt.Println("Difficulty: how many clues to show (20–81). More clues = easier.")
 
 	clues := 35 // default medium
-	fmt.Print("Enter number of clues [30-81, default 35]: ")
+	fmt.Print("Enter number of clues [20-81, default 35]: ")
 	input, _ := reader.ReadString('\n')
 	input = strings.TrimSpace(input)
 	if input != "" {
@@ -94,9 +94,9 @@ func main() {
 			mode := strings.ToLower(parts[1])
 			switch mode {
 			case "brute":
-				ok := boardState.BruteForceSolve()
-				if !ok {
-					msg = "Unable to solve the puzzle."
+				err := boardState.BruteForceSolve()
+				if err != nil {
+					msg = fmt.Sprintf("Unable to solve the puzzle: %s", err.Error())
 				}
 
 			case "smart":
