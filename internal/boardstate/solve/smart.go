@@ -11,7 +11,7 @@ import (
 
 var ErrEmptyCell = errors.New("cell is empty, cannot update possible values")
 var ErrUncertainCell = errors.New("cell is uncertain, cannot fully resolve")
-var ErrUnresolvable = errors.New("sudoku is unsolvable")
+var ErrUnsolvable = errors.New("sudoku is unsolvable")
 var ErrUnexpected = errors.New("unexpected error")
 
 type completionStatus struct {
@@ -96,14 +96,11 @@ func NewSudokuSolver(b *board.Board) *SudokuSolver {
 	return ss
 }
 
-func (ss *SudokuSolver) Board() board.Board {
-	return *ss.board
-}
-
 func (ss *SudokuSolver) Solve() error {
 	changed := true
 	for !ss.pq.IsEmpty() {
 		if !changed {
+			// TODO: restore this
 			// return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnresolvable)
 			return nil
 		}
@@ -123,7 +120,7 @@ func (ss *SudokuSolver) Solve() error {
 			}
 
 			if ss.possible[row][col].Size() == 0 {
-				return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnresolvable, row, col)
+				return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnsolvable, row, col)
 			}
 
 			if ss.possible[row][col].Size() == 1 {

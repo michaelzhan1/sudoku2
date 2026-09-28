@@ -55,8 +55,8 @@ func TestBruteForceSolve(t *testing.T) {
 				t.Errorf("NewBoardState returned error for valid board: %v", err)
 			}
 
-			solved := bs.BruteForceSolve()
-			if !solved {
+			err = bs.BruteForceSolve()
+			if err != nil {
 				t.Errorf("BruteForceSolve returned false for solvable board")
 			}
 		})
