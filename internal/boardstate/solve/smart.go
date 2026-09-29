@@ -168,6 +168,9 @@ func (ss *SudokuSolver) Solve() error {
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
+	if row < 0 || row > 8 {
+		return false
+	}
 	if ss.completed.row[row] {
 		return false
 	}
@@ -197,6 +200,9 @@ func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
+	if col < 0 || col > 8 {
+		return false
+	}
 	if ss.completed.col[col] {
 		return false
 	}
@@ -226,6 +232,9 @@ func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
+	if boxRow < 0 || boxRow > 2 || boxCol < 0 || boxCol > 2 {
+		return false
+	}
 	if ss.completed.box[boxRow][boxCol] {
 		return false
 	}
@@ -314,7 +323,96 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 	return updated
 }
 
-// func (ss *SudokuSolver)
+// TODO: move group logic out
+func (ss *SudokuSolver) resolveClosedGroupsInRow(row int) bool {
+	valToPos := make(map[int][]int)
+	for col := range 9 {
+		if ss.board[row][col] != 0 {
+			continue
+		}
+		for _, val := range ss.possible[row][col].ToSlice() {
+			valToPos[val] = append(valToPos[val], col)
+		}
+	}
+
+	// find closed groups in the row
+	var finalMembers *fastset.FastSet[int]
+	var finalPositions *fastset.FastSet[int]
+
+	var dfs func(lastVal int, members, positions *fastset.FastSet[int]) bool
+	dfs = func(lastVal int, members, positions *fastset.FastSet[int]) bool {
+		if members.Size() == positions.Size() {
+			if members.Size() < len(valToPos) {
+				finalMembers = members.Copy()
+				finalPositions = positions.Copy()
+				return true
+			}
+			return false
+		}
+
+		posList, ok := valToPos[lastVal]
+		if !ok {
+			return false
+		}
+
+		toRemove := []int{}
+		for _, pos := range posList {
+			if !positions.Contains(pos) {
+				toRemove = append(toRemove, pos)
+			}
+			positions.Add(pos)
+		}
+
+		for _, pos := range toRemove {
+			for _, val := range ss.possible[row][pos].ToSlice() {
+				if !members.Contains(val) {
+					members.Add(val)
+					if dfs(val, members, positions) {
+						return true
+					}
+					members.Remove(val)
+				}
+			}
+		}
+
+		for _, pos := range toRemove {
+			positions.Remove(pos)
+		}
+
+		return false
+	}
+
+	resolved := false
+	for val := range valToPos {
+		members := fastset.NewFastSet[int]()
+		positions := fastset.NewFastSet[int]()
+		members.Add(val)
+		for _, pos := range valToPos[val] {
+			positions.Add(pos)
+		}
+		if dfs(val, members, positions) {
+			resolved = true
+			break
+		}
+	}
+
+	if !resolved {
+		return false
+	}
+
+	changed := false
+	for _, pos := range finalPositions.ToSlice() {
+		for _, val := range ss.possible[row][pos].ToSlice() {
+			if !finalMembers.Contains(val) {
+				ss.possible[row][pos].Remove(val)
+				ss.pq.Push([2]int{row, pos})
+				changed = true
+			}
+		}
+	}
+
+	return changed
+}
 
 func (ss *SudokuSolver) resolveCertainCell(row, col int) error {
 	if ss.possible[row][col].Size() != 1 {
