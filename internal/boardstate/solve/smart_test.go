@@ -58,7 +58,7 @@ func TestResolveClosedGroupsInRow(t *testing.T) {
 				pq:       priorityqueue.NewPriorityQueue(func(a, b [2]int) bool { return a[0] < b[0] }),
 			}
 
-			res := ss.resolveClosedGroupsInRow(0)
+			res := ss.resolveHiddenGroupsInRow(0)
 			if res != testcase.exp {
 				t.Errorf("expected resolveClosedGroupsInRow to return %v, got %v", testcase.exp, res)
 			}
@@ -79,7 +79,7 @@ func TestResolveClosedGroupsInCol(t *testing.T) {
 	}
 	ss := newSolverForCandidates(possible)
 
-	if !ss.resolveClosedGroupsInCol(0) {
+	if !ss.resolveHiddenGroupsInCol(0) {
 		t.Fatal("expected hidden pair in column to be resolved")
 	}
 
@@ -96,7 +96,7 @@ func TestResolveClosedGroupsInBox(t *testing.T) {
 	}
 	ss := newSolverForCandidates(possible)
 
-	if !ss.resolveClosedGroupsInBox(0, 0) {
+	if !ss.resolveHiddenGroupsInBox(0, 0) {
 		t.Fatal("expected hidden pair in box to be resolved")
 	}
 
@@ -113,7 +113,7 @@ func TestResolveClosedGroupsDoesNotChangeWithoutGroup(t *testing.T) {
 	}
 	ss := newSolverForCandidates(possible)
 
-	if ss.resolveClosedGroupsInRow(0) {
+	if ss.resolveHiddenGroupsInRow(0) {
 		t.Fatal("expected no hidden group to be resolved")
 	}
 

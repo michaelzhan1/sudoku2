@@ -181,15 +181,15 @@ func (ss *SudokuSolver) Solve() error {
 
 		// use hidden groups
 		for i := range 9 {
-			if ss.resolveClosedGroupsInRow(i) {
+			if ss.resolveHiddenGroupsInRow(i) {
 				changed = true
 				break
 			}
-			if ss.resolveClosedGroupsInCol(i) {
+			if ss.resolveHiddenGroupsInCol(i) {
 				changed = true
 				break
 			}
-			if ss.resolveClosedGroupsInBox(i/3, i%3) {
+			if ss.resolveHiddenGroupsInBox(i/3, i%3) {
 				changed = true
 				break
 			}
@@ -528,33 +528,33 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxCol(boxCol int) bool {
 	return false
 }
 
-func (ss *SudokuSolver) resolveClosedGroupsInRow(row int) bool {
+func (ss *SudokuSolver) resolveHiddenGroupsInRow(row int) bool {
 	cells := make([][2]int, 0, 9)
 	for col := range 9 {
 		cells = append(cells, [2]int{row, col})
 	}
-	return ss.resolveClosedGroups(cells)
+	return ss.resolveHiddenGroups(cells)
 }
 
-func (ss *SudokuSolver) resolveClosedGroupsInCol(col int) bool {
+func (ss *SudokuSolver) resolveHiddenGroupsInCol(col int) bool {
 	cells := make([][2]int, 0, 9)
 	for row := range 9 {
 		cells = append(cells, [2]int{row, col})
 	}
-	return ss.resolveClosedGroups(cells)
+	return ss.resolveHiddenGroups(cells)
 }
 
-func (ss *SudokuSolver) resolveClosedGroupsInBox(boxRow, boxCol int) bool {
+func (ss *SudokuSolver) resolveHiddenGroupsInBox(boxRow, boxCol int) bool {
 	cells := make([][2]int, 0, 9)
 	for row := boxRow * 3; row < boxRow*3+3; row++ {
 		for col := boxCol * 3; col < boxCol*3+3; col++ {
 			cells = append(cells, [2]int{row, col})
 		}
 	}
-	return ss.resolveClosedGroups(cells)
+	return ss.resolveHiddenGroups(cells)
 }
 
-func (ss *SudokuSolver) resolveClosedGroups(cells [][2]int) bool {
+func (ss *SudokuSolver) resolveHiddenGroups(cells [][2]int) bool {
 	valToPos := make(map[int][]int)
 	for pos, cell := range cells {
 		row, col := cell[0], cell[1]
