@@ -12,12 +12,39 @@ func NewFastSet[T comparable]() *FastSet[T] {
 	}
 }
 
+func FromSlice[T comparable](arr []T) *FastSet[T] {
+	newSet := NewFastSet[T]()
+	for _, value := range arr {
+		newSet.Add(value)
+	}
+	return newSet
+}
+
 func (fs *FastSet[T]) Copy() *FastSet[T] {
 	newSet := NewFastSet[T]()
 	for _, value := range fs.arr {
 		newSet.Add(value)
 	}
 	return newSet
+}
+
+func (fs *FastSet[T]) Eq(other *FastSet[T]) bool {
+	if fs.Size() != other.Size() {
+		return false
+	}
+
+	for _, val := range fs.arr {
+		if !other.Contains(val) {
+			return false
+		}
+	}
+
+	for _, val := range other.ToSlice() {
+		if !fs.Contains(val) {
+			return false
+		}
+	}
+	return true
 }
 
 func (fs *FastSet[T]) Add(value T) {

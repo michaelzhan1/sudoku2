@@ -153,10 +153,26 @@ func (ss *SudokuSolver) Solve() error {
 			continue
 		}
 
-		// use spears
+		// use single spears
 		for i := range 9 {
 			if ss.resolveSpearsInBox(i/3, i%3) {
 				changed = true
+				break
+			}
+		}
+		if changed {
+			continue
+		}
+
+		// use double spears
+		for i := range 3 {
+			if ss.resolveDoubleSpearsInBoxRow(i) {
+				changed = true
+				break
+			}
+			if ss.resolveDoubleSpearsInBoxCol(i) {
+				changed = true
+				break
 			}
 		}
 		if changed {
@@ -340,6 +356,176 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 	}
 
 	return updated
+}
+
+func (ss *SudokuSolver) resolveDoubleSpearsInBoxRow(boxRow int) bool {
+	if boxRow < 0 || boxRow > 2 {
+		return false
+	}
+
+	// for each number, if it is in only 2 rows in 2 boxes, then it must be in the third row in the third box
+
+	// value -> which row in the ith box
+	valToRows := [3]map[int]*fastset.FastSet[int]{}
+	for i := range 3 {
+		valToRows[i] = make(map[int]*fastset.FastSet[int])
+	}
+
+	for boxCol := range 3 {
+		for i := boxRow * 3; i < boxRow*3+3; i++ {
+			for j := boxCol * 3; j < boxCol*3+3; j++ {
+				for _, val := range ss.possible[i][j].ToSlice() {
+					if valToRows[boxCol][val] == nil {
+						valToRows[boxCol][val] = fastset.NewFastSet[int]()
+					}
+
+					valToRows[boxCol][val].Add(i)
+				}
+			}
+		}
+	}
+
+	for val := 1; val <= 9; val++ {
+		valid := true
+		single := -1
+		for i := range 3 {
+			if valToRows[i][val] == nil || valToRows[i][val].Size() == 0 {
+				valid = false
+				break
+			}
+
+			if valToRows[i][val].Size() == 1 {
+				if single != -1 {
+					valid = false
+					break
+				}
+				single = i
+			}
+
+			if valToRows[i][val].Size() > 2 {
+				valid = false
+				break
+			}
+		}
+		if single == -1 || !valid {
+			continue
+		}
+
+		var set1 *fastset.FastSet[int]
+		var set2 *fastset.FastSet[int]
+
+		for i := range 3 {
+			if i == single {
+				continue
+			}
+
+			if set1 == nil {
+				set1 = valToRows[i][val]
+			} else {
+				set2 = valToRows[i][val]
+			}
+		}
+
+		if set1.Eq(set2) {
+			// remove val from the third box in the same row
+			for j := range set1.ToSlice() {
+				for i := single * 3; i < single*3+3; i++ {
+					if ss.possible[i][j].Contains(val) {
+						ss.possible[i][j].Remove(val)
+						ss.pq.Push([2]int{i, j})
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func (ss *SudokuSolver) resolveDoubleSpearsInBoxCol(boxCol int) bool {
+	if boxCol < 0 || boxCol > 2 {
+		return false
+	}
+
+	// for each number, if it is in only 2 cols in 2 boxes, then it must be in the third col in the third box
+
+	// value -> which col in the ith box
+	valToCols := [3]map[int]*fastset.FastSet[int]{}
+	for i := range 3 {
+		valToCols[i] = make(map[int]*fastset.FastSet[int])
+	}
+
+	for boxRow := range 3 {
+		for i := boxCol * 3; i < boxCol*3+3; i++ {
+			for j := boxRow * 3; j < boxRow*3+3; j++ {
+				for _, val := range ss.possible[i][j].ToSlice() {
+					if valToCols[boxRow][val] == nil {
+						valToCols[boxRow][val] = fastset.NewFastSet[int]()
+					}
+
+					valToCols[boxRow][val].Add(i)
+				}
+			}
+		}
+	}
+
+	for val := 1; val <= 9; val++ {
+		valid := true
+		single := -1
+		for i := range 3 {
+			if valToCols[i][val] == nil || valToCols[i][val].Size() == 0 {
+				valid = false
+				break
+			}
+
+			if valToCols[i][val].Size() == 1 {
+				if single != -1 {
+					valid = false
+					break
+				}
+				single = i
+			}
+
+			if valToCols[i][val].Size() > 2 {
+				valid = false
+				break
+			}
+		}
+		if single == -1 || !valid {
+			continue
+		}
+
+		var set1 *fastset.FastSet[int]
+		var set2 *fastset.FastSet[int]
+
+		for i := range 3 {
+			if i == single {
+				continue
+			}
+
+			if set1 == nil {
+				set1 = valToCols[i][val]
+			} else {
+				set2 = valToCols[i][val]
+			}
+		}
+
+		if set1.Eq(set2) {
+			// remove val from the third box in the same col
+			for i := range set1.ToSlice() {
+				for j := single * 3; j < single*3+3; j++ {
+					if ss.possible[i][j].Contains(val) {
+						ss.possible[i][j].Remove(val)
+						ss.pq.Push([2]int{i, j})
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 func (ss *SudokuSolver) resolveClosedGroupsInRow(row int) bool {

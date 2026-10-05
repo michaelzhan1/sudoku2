@@ -90,9 +90,9 @@ func TestResolveClosedGroupsInCol(t *testing.T) {
 
 func TestResolveClosedGroupsInBox(t *testing.T) {
 	possible := map[[2]int][]int{
-		{0, 0}: {1, 2, 4},
-		{0, 1}: {1, 2, 5},
-		{1, 0}: {3, 4, 5},
+		{0, 0}: {1, 2, 3, 4, 5, 6, 7},
+		{0, 1}: {1, 2, 3, 4, 5, 6, 7},
+		{1, 0}: {3, 4, 5, 6, 7},
 	}
 	ss := newSolverForCandidates(possible)
 
@@ -102,7 +102,7 @@ func TestResolveClosedGroupsInBox(t *testing.T) {
 
 	assertCandidates(t, ss, [2]int{0, 0}, []int{1, 2})
 	assertCandidates(t, ss, [2]int{0, 1}, []int{1, 2})
-	assertCandidates(t, ss, [2]int{1, 0}, []int{3, 4, 5})
+	assertCandidates(t, ss, [2]int{1, 0}, []int{3, 4, 5, 6, 7})
 }
 
 func TestResolveClosedGroupsDoesNotChangeWithoutGroup(t *testing.T) {
