@@ -171,6 +171,35 @@ func TestResolveNakedGroupsDoesNotChangeWithoutGroup(t *testing.T) {
 	}
 }
 
+func TestResolveSinglePossibilityPlacesOneSingleAtATime(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {1, 2},
+		{0, 1}: {3, 4},
+	}
+	ss := newSolverForCandidates(possible)
+
+	changed, err := ss.resolveSinglePossibility([][2]int{
+		{0, 0},
+		{0, 1},
+	})
+	if err != nil {
+		t.Fatalf("resolveSinglePossibility returned an error: %v", err)
+	}
+	if !changed {
+		t.Fatal("expected a hidden single to be placed")
+	}
+
+	placed := 0
+	for _, cell := range [][2]int{{0, 0}, {0, 1}} {
+		if ss.board[cell[0]][cell[1]] != 0 {
+			placed++
+		}
+	}
+	if placed != 1 {
+		t.Fatalf("expected exactly one single to be placed, got %d", placed)
+	}
+}
+
 func TestResolveSpearsInBoxUsesDistinctRowsAndColumns(t *testing.T) {
 	possible := map[[2]int][]int{
 		{0, 0}: {5},

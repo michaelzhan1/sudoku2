@@ -341,7 +341,6 @@ func (ss *SudokuSolver) resolveSinglePossibility(cells [][2]int) (bool, error) {
 		}
 	}
 
-	found := false
 	for val, posSet := range valToPos {
 		if posSet.Size() == 1 {
 			cell, _ := posSet.Peek()
@@ -349,11 +348,11 @@ func (ss *SudokuSolver) resolveSinglePossibility(cells [][2]int) (bool, error) {
 			if err := ss.place(row, col, val); err != nil {
 				return false, err
 			}
-			found = true
+			return true, nil
 		}
 	}
 
-	return found, nil
+	return false, nil
 }
 
 func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
