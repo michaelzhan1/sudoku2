@@ -171,6 +171,66 @@ func TestResolveNakedGroupsDoesNotChangeWithoutGroup(t *testing.T) {
 	}
 }
 
+func TestResolveSpearsInBoxUsesDistinctRowsAndColumns(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {5},
+		{0, 1}: {5},
+		{0, 3}: {5, 6},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveSpearsInBox(0, 0) {
+		t.Fatal("expected pointing pair to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{0, 3}, []int{6})
+}
+
+func TestResolveSpearsInBoxDoesNotUseDuplicateOccurrencesAsSingle(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {5},
+		{1, 1}: {5},
+		{0, 3}: {5, 6},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if ss.resolveSpearsInBox(0, 0) {
+		t.Fatal("expected no pointing pair when candidates span rows and columns")
+	}
+
+	assertCandidates(t, ss, [2]int{0, 3}, []int{5, 6})
+}
+
+func TestResolveDoubleSpearsInBoxRowClaimsCandidate(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {6},
+		{0, 1}: {6},
+		{1, 2}: {6, 7},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveDoubleSpearsInBoxRow(0) {
+		t.Fatal("expected claiming pair in row to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{1, 2}, []int{7})
+}
+
+func TestResolveDoubleSpearsInBoxColClaimsCandidate(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {8},
+		{1, 0}: {8},
+		{2, 1}: {8, 9},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveDoubleSpearsInBoxCol(0) {
+		t.Fatal("expected claiming pair in column to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{2, 1}, []int{9})
+}
+
 func newSolverForCandidates(candidates map[[2]int][]int) *SudokuSolver {
 	var possible [9][9]*fastset.FastSet[int]
 	for row := range 9 {

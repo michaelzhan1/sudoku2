@@ -3,6 +3,7 @@ package solve
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/michaelzhan1/sudoku2/internal/board"
 	"github.com/michaelzhan1/sudoku2/internal/utils/fastset"
@@ -349,8 +350,8 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 		return false
 	}
 
-	valueToRows := make(map[int][]int) // value -> list of possible rows in the box
-	valueToCols := make(map[int][]int) // value -> list of possible columns in the box
+	valueToRows := make(map[int]*fastset.FastSet[int]) // value -> possible rows in the box
+	valueToCols := make(map[int]*fastset.FastSet[int]) // value -> possible columns in the box
 
 	for r := boxRow * 3; r < boxRow*3+3; r++ {
 		for c := boxCol * 3; c < boxCol*3+3; c++ {
@@ -359,16 +360,20 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 			}
 
 			for _, val := range ss.possible[r][c].ToSlice() {
-				valueToRows[val] = append(valueToRows[val], r)
-				valueToCols[val] = append(valueToCols[val], c)
+				if valueToRows[val] == nil {
+					valueToRows[val] = fastset.NewFastSet[int]()
+					valueToCols[val] = fastset.NewFastSet[int]()
+				}
+				valueToRows[val].Add(r)
+				valueToCols[val].Add(c)
 			}
 		}
 	}
 
 	updated := false
 	for val, rows := range valueToRows {
-		if len(rows) == 1 {
-			row := rows[0]
+		if rows.Size() == 1 {
+			row, _ := rows.Peek()
 			for c := 0; c < 9; c++ {
 				if c/3 == boxCol {
 					continue
@@ -383,8 +388,8 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 	}
 
 	for val, cols := range valueToCols {
-		if len(cols) == 1 {
-			col := cols[0]
+		if cols.Size() == 1 {
+			col, _ := cols.Peek()
 			for r := 0; r < 9; r++ {
 				if r/3 == boxRow {
 					continue
@@ -406,83 +411,43 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxRow(boxRow int) bool {
 		return false
 	}
 
-	// for each number, if it is in only 2 rows in 2 boxes, then it must be in the third row in the third box
-
-	// value -> which row in the ith box
-	valToRows := [3]map[int]*fastset.FastSet[int]{}
-	for i := range 3 {
-		valToRows[i] = make(map[int]*fastset.FastSet[int])
-	}
-
-	for boxCol := range 3 {
-		for i := boxRow * 3; i < boxRow*3+3; i++ {
-			for j := boxCol * 3; j < boxCol*3+3; j++ {
-				for _, val := range ss.possible[i][j].ToSlice() {
-					if valToRows[boxCol][val] == nil {
-						valToRows[boxCol][val] = fastset.NewFastSet[int]()
+	for row := boxRow * 3; row < boxRow*3+3; row++ {
+		for val := 1; val <= 9; val++ {
+			boxCol := -1
+			count := 0
+			for col := 0; col < 9; col++ {
+				if ss.board[row][col] == 0 && ss.possible[row][col].Contains(val) {
+					count++
+					if boxCol == -1 {
+						boxCol = col / 3
+					} else if boxCol != col/3 {
+						boxCol = -2
+						break
 					}
-
-					valToRows[boxCol][val].Add(i)
 				}
 			}
-		}
-	}
-
-	for val := 1; val <= 9; val++ {
-		valid := true
-		single := -1
-		for i := range 3 {
-			if valToRows[i][val] == nil || valToRows[i][val].Size() == 0 {
-				valid = false
-				break
-			}
-
-			if valToRows[i][val].Size() == 1 {
-				if single != -1 {
-					valid = false
-					break
-				}
-				single = i
-			}
-
-			if valToRows[i][val].Size() > 2 {
-				valid = false
-				break
-			}
-		}
-		if single == -1 || !valid {
-			continue
-		}
-
-		var set1 *fastset.FastSet[int]
-		var set2 *fastset.FastSet[int]
-
-		for i := range 3 {
-			if i == single {
+			if count == 0 || boxCol < 0 {
 				continue
 			}
 
-			if set1 == nil {
-				set1 = valToRows[i][val]
-			} else {
-				set2 = valToRows[i][val]
-			}
-		}
-
-		if set1.Eq(set2) {
-			// remove val from the third box in the same row
-			for j := range set1.ToSlice() {
-				for i := single * 3; i < single*3+3; i++ {
-					if ss.possible[i][j].Contains(val) {
-						ss.possible[i][j].Remove(val)
-						ss.pq.Push([2]int{i, j})
-						return true
+			updated := false
+			for r := boxRow * 3; r < boxRow*3+3; r++ {
+				if r == row {
+					continue
+				}
+				for col := boxCol * 3; col < boxCol*3+3; col++ {
+					if ss.board[r][col] == 0 && ss.possible[r][col].Contains(val) {
+						ss.possible[r][col].Remove(val)
+						ss.pq.Push([2]int{r, col})
+						updated = true
 					}
 				}
 			}
+			if updated {
+				return true
+			}
 		}
 	}
-
 	return false
 }
 
@@ -491,83 +456,43 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxCol(boxCol int) bool {
 		return false
 	}
 
-	// for each number, if it is in only 2 cols in 2 boxes, then it must be in the third col in the third box
-
-	// value -> which col in the ith box
-	valToCols := [3]map[int]*fastset.FastSet[int]{}
-	for i := range 3 {
-		valToCols[i] = make(map[int]*fastset.FastSet[int])
-	}
-
-	for boxRow := range 3 {
-		for i := boxCol * 3; i < boxCol*3+3; i++ {
-			for j := boxRow * 3; j < boxRow*3+3; j++ {
-				for _, val := range ss.possible[i][j].ToSlice() {
-					if valToCols[boxRow][val] == nil {
-						valToCols[boxRow][val] = fastset.NewFastSet[int]()
+	for col := boxCol * 3; col < boxCol*3+3; col++ {
+		for val := 1; val <= 9; val++ {
+			boxRow := -1
+			count := 0
+			for row := 0; row < 9; row++ {
+				if ss.board[row][col] == 0 && ss.possible[row][col].Contains(val) {
+					count++
+					if boxRow == -1 {
+						boxRow = row / 3
+					} else if boxRow != row/3 {
+						boxRow = -2
+						break
 					}
-
-					valToCols[boxRow][val].Add(i)
 				}
 			}
-		}
-	}
-
-	for val := 1; val <= 9; val++ {
-		valid := true
-		single := -1
-		for i := range 3 {
-			if valToCols[i][val] == nil || valToCols[i][val].Size() == 0 {
-				valid = false
-				break
-			}
-
-			if valToCols[i][val].Size() == 1 {
-				if single != -1 {
-					valid = false
-					break
-				}
-				single = i
-			}
-
-			if valToCols[i][val].Size() > 2 {
-				valid = false
-				break
-			}
-		}
-		if single == -1 || !valid {
-			continue
-		}
-
-		var set1 *fastset.FastSet[int]
-		var set2 *fastset.FastSet[int]
-
-		for i := range 3 {
-			if i == single {
+			if count == 0 || boxRow < 0 {
 				continue
 			}
 
-			if set1 == nil {
-				set1 = valToCols[i][val]
-			} else {
-				set2 = valToCols[i][val]
-			}
-		}
-
-		if set1.Eq(set2) {
-			// remove val from the third box in the same col
-			for i := range set1.ToSlice() {
-				for j := single * 3; j < single*3+3; j++ {
-					if ss.possible[i][j].Contains(val) {
-						ss.possible[i][j].Remove(val)
-						ss.pq.Push([2]int{i, j})
-						return true
+			updated := false
+			for row := boxRow * 3; row < boxRow*3+3; row++ {
+				for c := boxCol * 3; c < boxCol*3+3; c++ {
+					if c == col {
+						continue
+					}
+					if ss.board[row][c] == 0 && ss.possible[row][c].Contains(val) {
+						ss.possible[row][c].Remove(val)
+						ss.pq.Push([2]int{row, c})
+						updated = true
 					}
 				}
 			}
+			if updated {
+				return true
+			}
 		}
 	}
-
 	return false
 }
 
@@ -702,6 +627,7 @@ func (ss *SudokuSolver) resolveHiddenGroups(cells [][2]int) bool {
 	for val := range valToPos {
 		values = append(values, val)
 	}
+	sort.Ints(values)
 
 	for groupSize := 2; groupSize < len(values); groupSize++ {
 		chosen := make([]int, 0, groupSize)
