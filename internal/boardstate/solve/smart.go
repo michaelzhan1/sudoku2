@@ -133,12 +133,16 @@ func (ss *SudokuSolver) Solve() error {
 		if ss.board[row][col] != 0 {
 			continue
 		}
-		if ss.possible[row][col].Size() == 0 {
+		currentCount := ss.possible[row][col].Size()
+		if cell.possibilityCount != currentCount {
+			continue
+		}
+		if currentCount == 0 {
 			return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnsolvable, row, col)
 		}
 
 		// resolve certain cells
-		if ss.possible[row][col].Size() == 1 {
+		if currentCount == 1 {
 			err := ss.resolveCertainCell(row, col)
 			if err != nil {
 				return err
