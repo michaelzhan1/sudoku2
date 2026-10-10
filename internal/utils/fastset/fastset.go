@@ -54,7 +54,7 @@ func (fs *FastSet[T]) Add(value T) {
 	}
 }
 
-func (fs *FastSet[T]) Remove(value T) {
+func (fs *FastSet[T]) Remove(value T) bool {
 	if idx, exists := fs.idxMap[value]; exists {
 		lastIdx := len(fs.arr) - 1
 		lastValue := fs.arr[lastIdx]
@@ -64,7 +64,9 @@ func (fs *FastSet[T]) Remove(value T) {
 
 		fs.arr = fs.arr[:lastIdx]
 		delete(fs.idxMap, value)
+		return true
 	}
+	return false
 }
 
 func (fs *FastSet[T]) Contains(value T) bool {

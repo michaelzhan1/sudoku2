@@ -111,6 +111,14 @@ func (ss *SudokuSolver) enqueue(row, col int) {
 	})
 }
 
+func (ss *SudokuSolver) removeCandidate(row, col, val int) bool {
+	if !ss.possible[row][col].Remove(val) {
+		return false
+	}
+	ss.enqueue(row, col)
+	return true
+}
+
 func (ss *SudokuSolver) Solve() error {
 	changed := true
 	// min heap on number of possible values in a cell
@@ -240,9 +248,7 @@ func (ss *SudokuSolver) Solve() error {
 			continue
 		}
 
-		// TODO: restore this
-		// return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnresolvable)
-		return nil
+		return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnsolvable)
 	}
 
 	return nil
@@ -389,9 +395,7 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 					continue
 				}
 				if ss.board[row][c] == 0 && ss.possible[row][c].Contains(val) {
-					ss.possible[row][c].Remove(val)
-					ss.enqueue(row, c)
-					updated = true
+					updated = ss.removeCandidate(row, c, val) || updated
 				}
 			}
 		}
@@ -405,9 +409,7 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 					continue
 				}
 				if ss.board[r][col] == 0 && ss.possible[r][col].Contains(val) {
-					ss.possible[r][col].Remove(val)
-					ss.enqueue(r, col)
-					updated = true
+					updated = ss.removeCandidate(r, col, val) || updated
 				}
 			}
 		}
@@ -447,9 +449,7 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxRow(boxRow int) bool {
 				}
 				for col := boxCol * 3; col < boxCol*3+3; col++ {
 					if ss.board[r][col] == 0 && ss.possible[r][col].Contains(val) {
-						ss.possible[r][col].Remove(val)
-						ss.enqueue(r, col)
-						updated = true
+						updated = ss.removeCandidate(r, col, val) || updated
 					}
 				}
 			}
@@ -492,9 +492,7 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxCol(boxCol int) bool {
 						continue
 					}
 					if ss.board[row][c] == 0 && ss.possible[row][c].Contains(val) {
-						ss.possible[row][c].Remove(val)
-						ss.enqueue(row, c)
-						updated = true
+						updated = ss.removeCandidate(row, c, val) || updated
 					}
 				}
 			}
@@ -568,9 +566,7 @@ func (ss *SudokuSolver) resolveNakedGroups(cells [][2]int) bool {
 					}
 					for _, val := range ss.possible[cell[0]][cell[1]].ToSlice() {
 						if members.Contains(val) {
-							ss.possible[cell[0]][cell[1]].Remove(val)
-							ss.enqueue(cell[0], cell[1])
-							changed = true
+							changed = ss.removeCandidate(cell[0], cell[1], val) || changed
 						}
 					}
 				}
@@ -665,9 +661,7 @@ func (ss *SudokuSolver) resolveHiddenGroups(cells [][2]int) bool {
 					row, col := cells[pos][0], cells[pos][1]
 					for _, val := range ss.possible[row][col].ToSlice() {
 						if !members.Contains(val) {
-							ss.possible[row][col].Remove(val)
-							ss.enqueue(row, col)
-							changed = true
+							changed = ss.removeCandidate(row, col, val) || changed
 						}
 					}
 				}
@@ -717,12 +711,10 @@ func (ss *SudokuSolver) updateLinked(row, col int) error {
 	// remove possible values from row and column
 	for k := range 9 {
 		if k != row && ss.board[k][col] == 0 {
-			ss.possible[k][col].Remove(val)
-			ss.enqueue(k, col)
+			ss.removeCandidate(k, col, val)
 		}
 		if k != col && ss.board[row][k] == 0 {
-			ss.possible[row][k].Remove(val)
-			ss.enqueue(row, k)
+			ss.removeCandidate(row, k, val)
 		}
 
 		if ss.board[row][k] == 0 {
@@ -739,8 +731,7 @@ func (ss *SudokuSolver) updateLinked(row, col int) error {
 	for r := boxRow; r < boxRow+3; r++ {
 		for c := boxCol; c < boxCol+3; c++ {
 			if (r != row || c != col) && ss.board[r][c] == 0 {
-				ss.possible[r][c].Remove(val)
-				ss.enqueue(r, c)
+				ss.removeCandidate(r, c, val)
 			}
 			if ss.board[r][c] == 0 {
 				boxComplete = false
