@@ -27,7 +27,7 @@ type SudokuSolver struct {
 	completed completionStatus
 }
 
-func NewSudokuSolver(b *board.Board) *SudokuSolver {
+func NewSudokuSolver(b *board.Board) (*SudokuSolver, error) {
 	ss := &SudokuSolver{
 		board:     b,
 		possible:  [9][9]*fastset.FastSet[int]{},
@@ -89,11 +89,13 @@ func NewSudokuSolver(b *board.Board) *SudokuSolver {
 				continue
 			}
 
-			ss.updateLinked(i, j)
+			if err := ss.updateLinked(i, j); err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	return ss
+	return ss, nil
 }
 
 func (ss *SudokuSolver) Solve() error {
@@ -131,17 +133,35 @@ func (ss *SudokuSolver) Solve() error {
 
 		// check for single-possibility cells in rows, cols, and boxes
 		for i := range 9 {
-			if !ss.completed.row[i] && ss.fillSinglePossibilityInRow(i) {
-				changed = true
-				break
+			if !ss.completed.row[i] {
+				didChange, err := ss.fillSinglePossibilityInRow(i)
+				if err != nil {
+					return err
+				}
+				if didChange {
+					changed = true
+					break
+				}
 			}
-			if !ss.completed.col[i] && ss.fillSinglePossibilityInCol(i) {
-				changed = true
-				break
+			if !ss.completed.col[i] {
+				didChange, err := ss.fillSinglePossibilityInCol(i)
+				if err != nil {
+					return err
+				}
+				if didChange {
+					changed = true
+					break
+				}
 			}
-			if !ss.completed.box[i/3][i%3] && ss.fillSinglePossibilityInBox(i/3, i%3) {
-				changed = true
-				break
+			if !ss.completed.box[i/3][i%3] {
+				didChange, err := ss.fillSinglePossibilityInBox(i/3, i%3)
+				if err != nil {
+					return err
+				}
+				if didChange {
+					changed = true
+					break
+				}
 			}
 		}
 		if changed {
@@ -218,12 +238,12 @@ func (ss *SudokuSolver) place(row, col, val int) error {
 	return nil
 }
 
-func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
+func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) (bool, error) {
 	if row < 0 || row > 8 {
-		return false
+		return false, nil
 	}
 	if ss.completed.row[row] {
-		return false
+		return false, nil
 	}
 
 	cells := [][2]int{}
@@ -236,12 +256,12 @@ func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
 	return ss.resolveSinglePossibility(cells)
 }
 
-func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
+func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) (bool, error) {
 	if col < 0 || col > 8 {
-		return false
+		return false, nil
 	}
 	if ss.completed.col[col] {
-		return false
+		return false, nil
 	}
 
 	cells := [][2]int{}
@@ -254,12 +274,12 @@ func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
 	return ss.resolveSinglePossibility(cells)
 }
 
-func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
+func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) (bool, error) {
 	if boxRow < 0 || boxRow > 2 || boxCol < 0 || boxCol > 2 {
-		return false
+		return false, nil
 	}
 	if ss.completed.box[boxRow][boxCol] {
-		return false
+		return false, nil
 	}
 
 	cells := [][2]int{}
@@ -274,7 +294,7 @@ func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
 	return ss.resolveSinglePossibility(cells)
 }
 
-func (ss *SudokuSolver) resolveSinglePossibility(cells [][2]int) bool {
+func (ss *SudokuSolver) resolveSinglePossibility(cells [][2]int) (bool, error) {
 	valToPos := make(map[int]*fastset.FastSet[[2]int]) // value -> set of positions
 	for i := range cells {
 		row, col := cells[i][0], cells[i][1]
@@ -295,13 +315,14 @@ func (ss *SudokuSolver) resolveSinglePossibility(cells [][2]int) bool {
 		if posSet.Size() == 1 {
 			cell, _ := posSet.Peek()
 			row, col := cell[0], cell[1]
-			// TODO: figure out the error handling
-			err := ss.place(row, col, val)
+			if err := ss.place(row, col, val); err != nil {
+				return false, err
+			}
 			found = true
 		}
 	}
 
-	return found
+	return found, nil
 }
 
 func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {

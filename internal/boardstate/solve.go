@@ -26,8 +26,11 @@ func (b *BoardState) BruteForceSolve() error {
 func (b *BoardState) SmartSolve() error {
 	b.Reset()
 	b.remaining = 0
-	solver := solve.NewSudokuSolver(&b.board)
-	err := solver.Solve()
+	solver, err := solve.NewSudokuSolver(&b.board)
+	if err != nil {
+		return err
+	}
+	err = solver.Solve()
 	if err != nil {
 		return err
 	}
