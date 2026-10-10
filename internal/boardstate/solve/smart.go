@@ -194,6 +194,25 @@ func (ss *SudokuSolver) Solve() error {
 			continue
 		}
 
+		// use naked groups
+		for i := range 9 {
+			if ss.resolveNakedGroupsInRow(i) {
+				changed = true
+				break
+			}
+			if ss.resolveNakedGroupsInCol(i) {
+				changed = true
+				break
+			}
+			if ss.resolveNakedGroupsInBox(i/3, i%3) {
+				changed = true
+				break
+			}
+		}
+		if changed {
+			continue
+		}
+
 		// use hidden groups
 		for i := range 9 {
 			if ss.resolveHiddenGroupsInRow(i) {
@@ -546,6 +565,95 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxCol(boxCol int) bool {
 					}
 				}
 			}
+		}
+	}
+
+	return false
+}
+
+func (ss *SudokuSolver) resolveNakedGroupsInRow(row int) bool {
+	cells := make([][2]int, 0, 9)
+	for col := range 9 {
+		cells = append(cells, [2]int{row, col})
+	}
+	return ss.resolveNakedGroups(cells)
+}
+
+func (ss *SudokuSolver) resolveNakedGroupsInCol(col int) bool {
+	cells := make([][2]int, 0, 9)
+	for row := range 9 {
+		cells = append(cells, [2]int{row, col})
+	}
+	return ss.resolveNakedGroups(cells)
+}
+
+func (ss *SudokuSolver) resolveNakedGroupsInBox(boxRow, boxCol int) bool {
+	cells := make([][2]int, 0, 9)
+	for row := boxRow * 3; row < boxRow*3+3; row++ {
+		for col := boxCol * 3; col < boxCol*3+3; col++ {
+			cells = append(cells, [2]int{row, col})
+		}
+	}
+	return ss.resolveNakedGroups(cells)
+}
+
+func (ss *SudokuSolver) resolveNakedGroups(cells [][2]int) bool {
+	eligible := make([]int, 0, len(cells))
+	for pos, cell := range cells {
+		row, col := cell[0], cell[1]
+		if ss.board[row][col] == 0 && ss.possible[row][col].Size() >= 2 && ss.possible[row][col].Size() <= 4 {
+			eligible = append(eligible, pos)
+		}
+	}
+
+	for groupSize := 2; groupSize <= 4; groupSize++ {
+		chosen := make([]int, 0, groupSize)
+
+		var findGroup func(int) bool
+		findGroup = func(next int) bool {
+			if len(chosen) == groupSize {
+				members := fastset.NewFastSet[int]()
+				positions := fastset.NewFastSet[int]()
+				for _, index := range chosen {
+					row, col := cells[index][0], cells[index][1]
+					positions.Add(index)
+					for _, val := range ss.possible[row][col].ToSlice() {
+						members.Add(val)
+					}
+				}
+
+				if members.Size() != groupSize {
+					return false
+				}
+
+				changed := false
+				for pos, cell := range cells {
+					if positions.Contains(pos) || ss.board[cell[0]][cell[1]] != 0 {
+						continue
+					}
+					for _, val := range ss.possible[cell[0]][cell[1]].ToSlice() {
+						if members.Contains(val) {
+							ss.possible[cell[0]][cell[1]].Remove(val)
+							ss.pq.Push(cell)
+							changed = true
+						}
+					}
+				}
+				return changed
+			}
+
+			for index := next; index <= len(eligible)-(groupSize-len(chosen)); index++ {
+				chosen = append(chosen, eligible[index])
+				if findGroup(index + 1) {
+					return true
+				}
+				chosen = chosen[:len(chosen)-1]
+			}
+			return false
+		}
+
+		if findGroup(0) {
+			return true
 		}
 	}
 

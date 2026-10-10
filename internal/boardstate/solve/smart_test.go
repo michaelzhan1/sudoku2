@@ -122,6 +122,55 @@ func TestResolveClosedGroupsDoesNotChangeWithoutGroup(t *testing.T) {
 	assertCandidates(t, ss, [2]int{0, 2}, []int{1, 3})
 }
 
+func TestResolveNakedGroupsInRow(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {1, 2},
+		{0, 1}: {1, 2},
+		{0, 2}: {1, 3, 4},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveNakedGroupsInRow(0) {
+		t.Fatal("expected naked pair in row to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{0, 0}, []int{1, 2})
+	assertCandidates(t, ss, [2]int{0, 1}, []int{1, 2})
+	assertCandidates(t, ss, [2]int{0, 2}, []int{3, 4})
+}
+
+func TestResolveNakedGroupsInBox(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {1, 2},
+		{0, 1}: {1, 3},
+		{0, 2}: {2, 3},
+		{1, 0}: {3, 4},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveNakedGroupsInBox(0, 0) {
+		t.Fatal("expected naked triple in box to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{0, 0}, []int{1, 2})
+	assertCandidates(t, ss, [2]int{0, 1}, []int{1, 3})
+	assertCandidates(t, ss, [2]int{0, 2}, []int{2, 3})
+	assertCandidates(t, ss, [2]int{1, 0}, []int{4})
+}
+
+func TestResolveNakedGroupsDoesNotChangeWithoutGroup(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {1, 2},
+		{0, 1}: {2, 3},
+		{0, 2}: {1, 3},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if ss.resolveNakedGroupsInRow(0) {
+		t.Fatal("expected no naked group to be resolved")
+	}
+}
+
 func newSolverForCandidates(candidates map[[2]int][]int) *SudokuSolver {
 	var possible [9][9]*fastset.FastSet[int]
 	for row := range 9 {
