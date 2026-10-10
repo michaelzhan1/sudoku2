@@ -21,10 +21,16 @@ type completionStatus struct {
 	box [3][3]bool
 }
 
+type queuedCell struct {
+	row              int
+	col              int
+	possibilityCount int
+}
+
 type SudokuSolver struct {
 	board     *board.Board
 	possible  [9][9]*fastset.FastSet[int]
-	pq        *priorityqueue.PriorityQueue[[2]int]
+	pq        *priorityqueue.PriorityQueue[queuedCell]
 	completed completionStatus
 }
 
@@ -37,10 +43,8 @@ func NewSudokuSolver(b *board.Board) (*SudokuSolver, error) {
 	}
 
 	// assign priority queue later to avoid circular dependency on ss.possible
-	ss.pq = priorityqueue.NewPriorityQueue[[2]int](func(a, b [2]int) bool {
-		rowA, colA := a[0], a[1]
-		rowB, colB := b[0], b[1]
-		return ss.possible[rowA][colA].Size() < ss.possible[rowB][colB].Size()
+	ss.pq = priorityqueue.NewPriorityQueue[queuedCell](func(a, b queuedCell) bool {
+		return a.possibilityCount < b.possibilityCount
 	})
 
 	// check completion status
@@ -78,7 +82,7 @@ func NewSudokuSolver(b *board.Board) (*SudokuSolver, error) {
 				for k := 1; k <= 9; k++ {
 					ss.possible[i][j].Add(k)
 				}
-				ss.pq.Push([2]int{i, j})
+				ss.enqueue(i, j)
 			}
 		}
 	}
@@ -99,22 +103,25 @@ func NewSudokuSolver(b *board.Board) (*SudokuSolver, error) {
 	return ss, nil
 }
 
+func (ss *SudokuSolver) enqueue(row, col int) {
+	ss.pq.Push(queuedCell{
+		row:              row,
+		col:              col,
+		possibilityCount: ss.possible[row][col].Size(),
+	})
+}
+
 func (ss *SudokuSolver) Solve() error {
 	changed := true
 	// min heap on number of possible values in a cell
 	for !ss.pq.IsEmpty() {
-		if !changed {
-			// TODO: restore this
-			// return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnresolvable)
-			return nil
-		}
 		changed = false
 
 		cell, ok := ss.pq.Pop()
 		if !ok {
 			return fmt.Errorf("%w: priority queue is empty", ErrUnexpected)
 		}
-		row, col := cell[0], cell[1]
+		row, col := cell.row, cell.col
 		if ss.board[row][col] != 0 {
 			continue
 		}
@@ -232,6 +239,10 @@ func (ss *SudokuSolver) Solve() error {
 		if changed {
 			continue
 		}
+
+		// TODO: restore this
+		// return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnresolvable)
+		return nil
 	}
 
 	return nil
@@ -380,7 +391,7 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 				}
 				if ss.board[row][c] == 0 && ss.possible[row][c].Contains(val) {
 					ss.possible[row][c].Remove(val)
-					ss.pq.Push([2]int{row, c})
+					ss.enqueue(row, c)
 					updated = true
 				}
 			}
@@ -396,7 +407,7 @@ func (ss *SudokuSolver) resolveSpearsInBox(boxRow, boxCol int) bool {
 				}
 				if ss.board[r][col] == 0 && ss.possible[r][col].Contains(val) {
 					ss.possible[r][col].Remove(val)
-					ss.pq.Push([2]int{r, col})
+					ss.enqueue(r, col)
 					updated = true
 				}
 			}
@@ -438,7 +449,7 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxRow(boxRow int) bool {
 				for col := boxCol * 3; col < boxCol*3+3; col++ {
 					if ss.board[r][col] == 0 && ss.possible[r][col].Contains(val) {
 						ss.possible[r][col].Remove(val)
-						ss.pq.Push([2]int{r, col})
+						ss.enqueue(r, col)
 						updated = true
 					}
 				}
@@ -483,7 +494,7 @@ func (ss *SudokuSolver) resolveDoubleSpearsInBoxCol(boxCol int) bool {
 					}
 					if ss.board[row][c] == 0 && ss.possible[row][c].Contains(val) {
 						ss.possible[row][c].Remove(val)
-						ss.pq.Push([2]int{row, c})
+						ss.enqueue(row, c)
 						updated = true
 					}
 				}
@@ -559,7 +570,7 @@ func (ss *SudokuSolver) resolveNakedGroups(cells [][2]int) bool {
 					for _, val := range ss.possible[cell[0]][cell[1]].ToSlice() {
 						if members.Contains(val) {
 							ss.possible[cell[0]][cell[1]].Remove(val)
-							ss.pq.Push(cell)
+							ss.enqueue(cell[0], cell[1])
 							changed = true
 						}
 					}
@@ -656,7 +667,7 @@ func (ss *SudokuSolver) resolveHiddenGroups(cells [][2]int) bool {
 					for _, val := range ss.possible[row][col].ToSlice() {
 						if !members.Contains(val) {
 							ss.possible[row][col].Remove(val)
-							ss.pq.Push([2]int{row, col})
+							ss.enqueue(row, col)
 							changed = true
 						}
 					}
@@ -708,11 +719,11 @@ func (ss *SudokuSolver) updateLinked(row, col int) error {
 	for k := range 9 {
 		if k != row && ss.board[k][col] == 0 {
 			ss.possible[k][col].Remove(val)
-			ss.pq.Push([2]int{k, col})
+			ss.enqueue(k, col)
 		}
 		if k != col && ss.board[row][k] == 0 {
 			ss.possible[row][k].Remove(val)
-			ss.pq.Push([2]int{row, k})
+			ss.enqueue(row, k)
 		}
 
 		if ss.board[row][k] == 0 {
@@ -730,7 +741,7 @@ func (ss *SudokuSolver) updateLinked(row, col int) error {
 		for c := boxCol; c < boxCol+3; c++ {
 			if (r != row || c != col) && ss.board[r][c] == 0 {
 				ss.possible[r][c].Remove(val)
-				ss.pq.Push([2]int{r, c})
+				ss.enqueue(r, c)
 			}
 			if ss.board[r][c] == 0 {
 				boxComplete = false

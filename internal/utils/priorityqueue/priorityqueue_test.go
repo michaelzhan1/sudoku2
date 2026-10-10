@@ -116,3 +116,23 @@ func TestOperations(t *testing.T) {
 		}
 	})
 }
+
+func TestStoredPriorityDoesNotChangeWhenExternalStateChanges(t *testing.T) {
+	type item struct {
+		value    int
+		priority int
+	}
+	pq := priorityqueue.NewPriorityQueue(func(a, b item) bool {
+		return a.priority < b.priority
+	})
+	pq.Push(item{value: 1, priority: 1})
+	pq.Push(item{value: 2, priority: 2})
+
+	popped, ok := pq.Pop()
+	if !ok {
+		t.Fatal("expected pop to succeed")
+	}
+	if popped.value != 1 {
+		t.Fatalf("expected item 1 to pop first, got %d", popped.value)
+	}
+}

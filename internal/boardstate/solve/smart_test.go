@@ -55,7 +55,7 @@ func TestResolveClosedGroupsInRow(t *testing.T) {
 					testcase.row,
 				},
 				possible: [9][9]*fastset.FastSet[int]{possibleSets},
-				pq:       priorityqueue.NewPriorityQueue(func(a, b [2]int) bool { return a[0] < b[0] }),
+				pq:       priorityqueue.NewPriorityQueue(func(a, b queuedCell) bool { return a.possibilityCount < b.possibilityCount }),
 			}
 
 			res := ss.resolveHiddenGroupsInRow(0)
@@ -231,6 +231,41 @@ func TestResolveDoubleSpearsInBoxColClaimsCandidate(t *testing.T) {
 	assertCandidates(t, ss, [2]int{2, 1}, []int{9})
 }
 
+func TestSmartSolveReportedPuzzle(t *testing.T) {
+	puzzle := board.Board{
+		{0, 8, 0, 0, 1, 2, 9, 4, 3},
+		{2, 0, 9, 7, 0, 0, 8, 1, 0},
+		{6, 0, 0, 0, 3, 0, 5, 0, 2},
+		{0, 0, 3, 4, 0, 1, 7, 0, 0},
+		{0, 0, 0, 0, 0, 5, 4, 0, 8},
+		{0, 0, 7, 0, 0, 0, 0, 9, 0},
+		{0, 0, 0, 0, 0, 0, 6, 0, 0},
+		{4, 0, 0, 5, 2, 0, 0, 8, 0},
+		{9, 5, 8, 3, 0, 6, 1, 2, 0},
+	}
+	ss, err := NewSudokuSolver(&puzzle)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ss.Solve(); err != nil {
+		t.Fatal(err)
+	}
+	expected := board.Board{
+		{7, 8, 5, 6, 1, 2, 9, 4, 3},
+		{2, 3, 9, 7, 5, 4, 8, 1, 6},
+		{6, 1, 4, 9, 3, 8, 5, 7, 2},
+		{8, 2, 3, 4, 9, 1, 7, 6, 5},
+		{1, 9, 6, 2, 7, 5, 4, 3, 8},
+		{5, 4, 7, 8, 6, 3, 2, 9, 1},
+		{3, 7, 2, 1, 8, 9, 6, 5, 4},
+		{4, 6, 1, 5, 2, 7, 3, 8, 9},
+		{9, 5, 8, 3, 4, 6, 1, 2, 7},
+	}
+	if puzzle != expected {
+		t.Errorf("smart solve produced %v, want %v", puzzle, expected)
+	}
+}
+
 func newSolverForCandidates(candidates map[[2]int][]int) *SudokuSolver {
 	var possible [9][9]*fastset.FastSet[int]
 	for row := range 9 {
@@ -247,7 +282,7 @@ func newSolverForCandidates(candidates map[[2]int][]int) *SudokuSolver {
 	return &SudokuSolver{
 		board:    &board.Board{},
 		possible: possible,
-		pq:       priorityqueue.NewPriorityQueue(func(a, b [2]int) bool { return a[0] < b[0] }),
+		pq:       priorityqueue.NewPriorityQueue(func(a, b queuedCell) bool { return a.possibilityCount < b.possibilityCount }),
 	}
 }
 
