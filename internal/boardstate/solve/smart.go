@@ -98,6 +98,7 @@ func NewSudokuSolver(b *board.Board) *SudokuSolver {
 
 func (ss *SudokuSolver) Solve() error {
 	changed := true
+	// min heap on number of possible values in a cell
 	for !ss.pq.IsEmpty() {
 		if !changed {
 			// TODO: restore this
@@ -106,54 +107,48 @@ func (ss *SudokuSolver) Solve() error {
 		}
 		changed = false
 
-		// resolve all single-possibility cells
-		for top, ok := ss.pq.Peek(); ok && ss.possible[top[0]][top[1]].Size() <= 1; top, ok = ss.pq.Peek() {
-			cell, ok := ss.pq.Pop()
-			if !ok {
-				// should not happen
-				return fmt.Errorf("%w: priority queue is empty", ErrUnexpected)
-			}
-			row, col := cell[0], cell[1]
-
-			if ss.board[row][col] != 0 {
-				continue
-			}
-
-			if ss.possible[row][col].Size() == 0 {
-				return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnsolvable, row, col)
-			}
-
-			if ss.possible[row][col].Size() == 1 {
-				err := ss.resolveCertainCell(row, col)
-				if err != nil {
-					return err
-				}
-				changed = true
-				ss.updateLinked(row, col)
-				continue
-			}
+		cell, ok := ss.pq.Pop()
+		if !ok {
+			return fmt.Errorf("%w: priority queue is empty", ErrUnexpected)
 		}
-		if changed {
+		row, col := cell[0], cell[1]
+		if ss.board[row][col] != 0 {
+			continue
+		}
+		if ss.possible[row][col].Size() == 0 {
+			return fmt.Errorf("%w: cell (%d, %d) has no possible values", ErrUnsolvable, row, col)
+		}
+
+		// resolve certain cells
+		if ss.possible[row][col].Size() == 1 {
+			err := ss.resolveCertainCell(row, col)
+			if err != nil {
+				return err
+			}
+			changed = true
 			continue
 		}
 
-		// check incomplete
+		// check for single-possibility cells in rows, cols, and boxes
 		for i := range 9 {
-			if ss.fillSinglePossibilityInRow(i) {
+			if !ss.completed.row[i] && ss.fillSinglePossibilityInRow(i) {
 				changed = true
+				break
 			}
-			if ss.fillSinglePossibilityInCol(i) {
+			if !ss.completed.col[i] && ss.fillSinglePossibilityInCol(i) {
 				changed = true
+				break
 			}
-			if ss.fillSinglePossibilityInBox(i/3, i%3) {
+			if !ss.completed.box[i/3][i%3] && ss.fillSinglePossibilityInBox(i/3, i%3) {
 				changed = true
+				break
 			}
 		}
 		if changed {
 			continue
 		}
 
-		// use single spears
+		// check single spears
 		for i := range 9 {
 			if ss.resolveSpearsInBox(i/3, i%3) {
 				changed = true
@@ -202,6 +197,27 @@ func (ss *SudokuSolver) Solve() error {
 	return nil
 }
 
+func (ss *SudokuSolver) place(row, col, val int) error {
+	if row < 0 || row > 8 || col < 0 || col > 8 || val < 1 || val > 9 {
+		return fmt.Errorf("%w: invalid row, col, or value", ErrUnexpected)
+	}
+	if ss.board[row][col] != 0 {
+		return fmt.Errorf("%w: cell (%d, %d) is already filled", ErrUnexpected, row, col)
+	}
+	if !ss.possible[row][col].Contains(val) {
+		return fmt.Errorf("%w: value %d is not possible for cell (%d, %d)", ErrUnexpected, val, row, col)
+	}
+
+	ss.board[row][col] = val
+	ss.possible[row][col].Clear()
+	err := ss.updateLinked(row, col)
+	if err != nil {
+		ss.board[row][col] = 0
+		return err
+	}
+	return nil
+}
+
 func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
 	if row < 0 || row > 8 {
 		return false
@@ -210,28 +226,14 @@ func (ss *SudokuSolver) fillSinglePossibilityInRow(row int) bool {
 		return false
 	}
 
-	appears := make(map[int][]int) // value -> list of possible columns
+	cells := [][2]int{}
 	for col := range 9 {
-		if ss.board[row][col] != 0 {
-			continue
-		}
-
-		for _, val := range ss.possible[row][col].ToSlice() {
-			appears[val] = append(appears[val], col)
+		if ss.board[row][col] == 0 {
+			cells = append(cells, [2]int{row, col})
 		}
 	}
 
-	found := false
-	for val, cols := range appears {
-		if len(cols) == 1 {
-			col := cols[0]
-			ss.board[row][col] = val
-			ss.possible[row][col].Clear()
-			ss.updateLinked(row, col)
-			found = true
-		}
-	}
-	return found
+	return ss.resolveSinglePossibility(cells)
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
@@ -242,28 +244,14 @@ func (ss *SudokuSolver) fillSinglePossibilityInCol(col int) bool {
 		return false
 	}
 
-	appears := make(map[int][]int) // value -> list of possible rows
+	cells := [][2]int{}
 	for row := range 9 {
-		if ss.board[row][col] != 0 {
-			continue
-		}
-
-		for _, val := range ss.possible[row][col].ToSlice() {
-			appears[val] = append(appears[val], row)
+		if ss.board[row][col] == 0 {
+			cells = append(cells, [2]int{row, col})
 		}
 	}
 
-	found := false
-	for val, rows := range appears {
-		if len(rows) == 1 {
-			row := rows[0]
-			ss.board[row][col] = val
-			ss.possible[row][col].Clear()
-			ss.updateLinked(row, col)
-			found = true
-		}
-	}
-	return found
+	return ss.resolveSinglePossibility(cells)
 }
 
 func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
@@ -274,30 +262,45 @@ func (ss *SudokuSolver) fillSinglePossibilityInBox(boxRow, boxCol int) bool {
 		return false
 	}
 
-	appears := make(map[int][][2]int) // value -> list of possible cells
-	for r := boxRow * 3; r < boxRow*3+3; r++ {
-		for c := boxCol * 3; c < boxCol*3+3; c++ {
-			if ss.board[r][c] != 0 {
-				continue
+	cells := [][2]int{}
+	for row := boxRow * 3; row < boxRow*3+3; row++ {
+		for col := boxCol * 3; col < boxCol*3+3; col++ {
+			if ss.board[row][col] == 0 {
+				cells = append(cells, [2]int{row, col})
 			}
+		}
+	}
 
-			for _, val := range ss.possible[r][c].ToSlice() {
-				appears[val] = append(appears[val], [2]int{r, c})
+	return ss.resolveSinglePossibility(cells)
+}
+
+func (ss *SudokuSolver) resolveSinglePossibility(cells [][2]int) bool {
+	valToPos := make(map[int]*fastset.FastSet[[2]int]) // value -> set of positions
+	for i := range cells {
+		row, col := cells[i][0], cells[i][1]
+		if ss.board[row][col] != 0 {
+			continue
+		}
+
+		for _, val := range ss.possible[row][col].ToSlice() {
+			if valToPos[val] == nil {
+				valToPos[val] = fastset.NewFastSet[[2]int]()
 			}
+			valToPos[val].Add([2]int{row, col})
 		}
 	}
 
 	found := false
-	for val, cells := range appears {
-		if len(cells) == 1 {
-			cell := cells[0]
+	for val, posSet := range valToPos {
+		if posSet.Size() == 1 {
+			cell, _ := posSet.Peek()
 			row, col := cell[0], cell[1]
-			ss.board[row][col] = val
-			ss.possible[row][col].Clear()
-			ss.updateLinked(row, col)
+			// TODO: figure out the error handling
+			err := ss.place(row, col, val)
 			found = true
 		}
 	}
+
 	return found
 }
 
@@ -630,15 +633,8 @@ func (ss *SudokuSolver) resolveCertainCell(row, col int) error {
 		return ErrUncertainCell
 	}
 
-	ss.board[row][col], _ = ss.possible[row][col].Peek()
-	err := ss.updateLinked(row, col)
-	if err != nil {
-		ss.board[row][col] = 0
-		return err
-	}
-
-	ss.possible[row][col].Clear()
-	return nil
+	val, _ := ss.possible[row][col].Peek()
+	return ss.place(row, col, val)
 }
 
 // updateLinked updates the possible values for all cells based on (row, col).
