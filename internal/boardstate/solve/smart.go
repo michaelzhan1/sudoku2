@@ -252,6 +252,16 @@ func (ss *SudokuSolver) Solve() error {
 			continue
 		}
 
+		// use x-wings
+		if ss.resolveXWingRow() {
+			changed = true
+		} else if ss.resolveXWingCol() {
+			changed = true
+		}
+		if changed {
+			continue
+		}
+
 		return fmt.Errorf("%w: infinite loop, no more progress can be made", ErrUnsolvable)
 	}
 
@@ -698,6 +708,96 @@ func (ss *SudokuSolver) resolveCertainCell(row, col int) error {
 
 	val, _ := ss.possible[row][col].Peek()
 	return ss.place(row, col, val)
+}
+
+func (ss *SudokuSolver) resolveXWingRow() bool {
+	for val := 1; val <= 9; val++ {
+		cols := []*fastset.FastSet[int]{}
+		for row := range 9 {
+			colSet := fastset.NewFastSet[int]()
+			for col := range 9 {
+				if ss.board[row][col] != 0 {
+					continue
+				}
+
+				if ss.possible[row][col].Contains(val) {
+					colSet.Add(col)
+				}
+			}
+			cols = append(cols, colSet)
+		}
+
+		// check for x-wings
+		for i := range 9 {
+			for j := range i {
+				set1 := cols[i]
+				set2 := cols[j]
+				if set1.Eq(set2) && set1.Size() == 2 {
+					changed := false
+					for row := range 9 {
+						if row == i || row == j {
+							continue
+						}
+						for _, col := range set1.ToSlice() {
+							if ss.board[row][col] == 0 && ss.possible[row][col].Contains(val) {
+								changed = ss.removeCandidate(row, col, val) || changed
+							}
+						}
+					}
+					if changed {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+func (ss *SudokuSolver) resolveXWingCol() bool {
+	for val := 1; val <= 9; val++ {
+		rows := []*fastset.FastSet[int]{}
+		for col := range 9 {
+			rowSet := fastset.NewFastSet[int]()
+			for row := range 9 {
+				if ss.board[row][col] != 0 {
+					continue
+				}
+
+				if ss.possible[row][col].Contains(val) {
+					rowSet.Add(row)
+				}
+			}
+			rows = append(rows, rowSet)
+		}
+
+		// check for x-wings
+		for i := range 9 {
+			for j := range i {
+				set1 := rows[i]
+				set2 := rows[j]
+				if set1.Eq(set2) && set1.Size() == 2 {
+					changed := false
+					for col := range 9 {
+						if col == i || col == j {
+							continue
+						}
+						for _, row := range set1.ToSlice() {
+							if ss.board[row][col] == 0 && ss.possible[row][col].Contains(val) {
+								changed = ss.removeCandidate(row, col, val) || changed
+							}
+						}
+					}
+					if changed {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }
 
 // updateLinked updates the possible values for all cells based on (row, col).

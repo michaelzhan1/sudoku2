@@ -7,3 +7,5 @@ Play the game with:
 ```bash
 go run cmd/main/main.go
 ```
+
+Logic-based solving solves the puzzle using techniques such as pointing pairs, hidden groups, naked gropus, and X-Wing.

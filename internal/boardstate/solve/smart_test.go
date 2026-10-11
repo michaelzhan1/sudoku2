@@ -1,6 +1,7 @@
 package solve
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/michaelzhan1/sudoku2/internal/board"
@@ -139,6 +140,23 @@ func TestResolveNakedGroupsInRow(t *testing.T) {
 	assertCandidates(t, ss, [2]int{0, 2}, []int{3, 4})
 }
 
+func TestResolveNakedGroupsInCol(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 0}: {1, 2},
+		{1, 0}: {1, 2},
+		{2, 0}: {1, 3, 4},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveNakedGroupsInCol(0) {
+		t.Fatal("expected naked pair in column to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{0, 0}, []int{1, 2})
+	assertCandidates(t, ss, [2]int{1, 0}, []int{1, 2})
+	assertCandidates(t, ss, [2]int{2, 0}, []int{3, 4})
+}
+
 func TestResolveNakedGroupsInBox(t *testing.T) {
 	possible := map[[2]int][]int{
 		{0, 0}: {1, 2},
@@ -258,6 +276,217 @@ func TestResolveDoubleSpearsInBoxColClaimsCandidate(t *testing.T) {
 	}
 
 	assertCandidates(t, ss, [2]int{2, 1}, []int{9})
+}
+
+func TestResolveXWingRow(t *testing.T) {
+	possible := map[[2]int][]int{
+		{0, 2}: {5},
+		{0, 7}: {5},
+		{1, 2}: {5},
+		{1, 7}: {5},
+		{2, 2}: {4, 5},
+		{2, 7}: {5, 6},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveXWingRow() {
+		t.Fatal("expected x-wing in rows to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{2, 2}, []int{4})
+	assertCandidates(t, ss, [2]int{2, 7}, []int{6})
+}
+
+func TestResolveXWingCol(t *testing.T) {
+	possible := map[[2]int][]int{
+		{3, 0}: {5},
+		{8, 0}: {5},
+		{3, 1}: {5},
+		{8, 1}: {5},
+		{3, 5}: {4, 5},
+		{8, 5}: {5, 6},
+	}
+	ss := newSolverForCandidates(possible)
+
+	if !ss.resolveXWingCol() {
+		t.Fatal("expected x-wing in columns to be resolved")
+	}
+
+	assertCandidates(t, ss, [2]int{3, 5}, []int{4})
+	assertCandidates(t, ss, [2]int{8, 5}, []int{6})
+}
+
+func TestFillSinglePossibilityInUnits(t *testing.T) {
+	testcases := []struct {
+		name       string
+		candidates map[[2]int][]int
+		resolve    func(*SudokuSolver) (bool, error)
+		expected   [2]int
+	}{
+		{
+			name: "row",
+			candidates: map[[2]int][]int{
+				{0, 0}: {3},
+				{0, 1}: {1, 2},
+				{0, 2}: {1, 2},
+			},
+			resolve:  func(ss *SudokuSolver) (bool, error) { return ss.fillSinglePossibilityInRow(0) },
+			expected: [2]int{0, 0},
+		},
+		{
+			name: "column",
+			candidates: map[[2]int][]int{
+				{0, 0}: {3},
+				{1, 0}: {1, 2},
+				{2, 0}: {1, 2},
+			},
+			resolve:  func(ss *SudokuSolver) (bool, error) { return ss.fillSinglePossibilityInCol(0) },
+			expected: [2]int{0, 0},
+		},
+		{
+			name: "box",
+			candidates: map[[2]int][]int{
+				{0, 0}: {3},
+				{0, 1}: {1, 2},
+				{0, 2}: {1, 2},
+			},
+			resolve:  func(ss *SudokuSolver) (bool, error) { return ss.fillSinglePossibilityInBox(0, 0) },
+			expected: [2]int{0, 0},
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			ss := newSolverForCandidates(testcase.candidates)
+
+			changed, err := testcase.resolve(ss)
+			if err != nil {
+				t.Fatalf("fillSinglePossibility returned an error: %v", err)
+			}
+			if !changed {
+				t.Fatal("expected a single possibility to be resolved")
+			}
+			if ss.board[testcase.expected[0]][testcase.expected[1]] != 3 {
+				t.Fatalf("expected cell %v to contain 3", testcase.expected)
+			}
+		})
+	}
+}
+
+func TestFillSinglePossibilityRejectsInvalidOrCompletedUnits(t *testing.T) {
+	ss := newSolverForCandidates(nil)
+	ss.completed.row[0] = true
+	ss.completed.col[0] = true
+	ss.completed.box[0][0] = true
+
+	testcases := []struct {
+		name    string
+		resolve func() (bool, error)
+	}{
+		{
+			name:    "invalid row",
+			resolve: func() (bool, error) { return ss.fillSinglePossibilityInRow(-1) },
+		},
+		{
+			name:    "completed row",
+			resolve: func() (bool, error) { return ss.fillSinglePossibilityInRow(0) },
+		},
+		{
+			name:    "invalid column",
+			resolve: func() (bool, error) { return ss.fillSinglePossibilityInCol(9) },
+		},
+		{
+			name:    "completed column",
+			resolve: func() (bool, error) { return ss.fillSinglePossibilityInCol(0) },
+		},
+		{
+			name:    "invalid box",
+			resolve: func() (bool, error) { return ss.fillSinglePossibilityInBox(3, 0) },
+		},
+		{
+			name:    "completed box",
+			resolve: func() (bool, error) { return ss.fillSinglePossibilityInBox(0, 0) },
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			changed, err := testcase.resolve()
+			if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+			if changed {
+				t.Fatal("expected no change")
+			}
+		})
+	}
+}
+
+func TestPlaceValidatesCellAndCandidate(t *testing.T) {
+	ss := newSolverForCandidates(map[[2]int][]int{
+		{0, 0}: {1},
+	})
+	ss.board[0][1] = 2
+
+	testcases := []struct {
+		name string
+		row  int
+		col  int
+		val  int
+	}{
+		{name: "invalid coordinates", row: -1, col: 0, val: 1},
+		{name: "filled cell", row: 0, col: 1, val: 2},
+		{name: "impossible candidate", row: 0, col: 0, val: 2},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			if err := ss.place(testcase.row, testcase.col, testcase.val); !errors.Is(err, ErrUnexpected) {
+				t.Fatalf("expected ErrUnexpected, got %v", err)
+			}
+		})
+	}
+}
+
+func TestResolveCertainCellRequiresOneCandidate(t *testing.T) {
+	ss := newSolverForCandidates(map[[2]int][]int{
+		{0, 0}: {1, 2},
+	})
+
+	if err := ss.resolveCertainCell(0, 0); !errors.Is(err, ErrUncertainCell) {
+		t.Fatalf("expected ErrUncertainCell, got %v", err)
+	}
+}
+
+func TestUpdateLinkedRequiresFilledCell(t *testing.T) {
+	ss := newSolverForCandidates(nil)
+
+	if err := ss.updateLinked(0, 0); !errors.Is(err, ErrEmptyCell) {
+		t.Fatalf("expected ErrEmptyCell, got %v", err)
+	}
+}
+
+func TestResolveSpearsSkipsCompletedBox(t *testing.T) {
+	ss := newSolverForCandidates(map[[2]int][]int{
+		{0, 0}: {5},
+		{0, 3}: {5},
+	})
+	ss.completed.box[0][0] = true
+
+	if ss.resolveSpearsInBox(0, 0) {
+		t.Fatal("expected completed box to be skipped")
+	}
+}
+
+func TestResolveDoubleSpearsRejectsInvalidUnit(t *testing.T) {
+	ss := newSolverForCandidates(nil)
+
+	if ss.resolveDoubleSpearsInBoxRow(-1) {
+		t.Fatal("expected invalid box row to be rejected")
+	}
+	if ss.resolveDoubleSpearsInBoxCol(3) {
+		t.Fatal("expected invalid box column to be rejected")
+	}
 }
 
 func TestSmartSolveReportedPuzzle(t *testing.T) {
